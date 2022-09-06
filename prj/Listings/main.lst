@@ -1,0 +1,210 @@
+C51 COMPILER V9.54   MAIN                                                                  08/31/2022 15:02:54 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\main.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Li
+                    -stings\main.lst) TABS(5) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "include_s.h"
+   2          
+   3          void main(void)
+   4          {
+   5   1           u8 pon_1s=100;//上电1s后才启用手势，原因是有块板子上电的时候会有手势信号
+   6   1           EA=0;
+   7   1           mcu_init();
+   8   1           read_level_onoff(robam_gear);//读取烟机档位
+   9   1           read_clock_onoff(clock_eeprom);
+*** WARNING C182 IN LINE 9 OF ..\src\main.c: pointer to different objects
+  10   1           read_para_block();//读取烟机运行总时间
+  11   1           system_init();
+  12   1           start_interrupts();
+  13   1           while(1)
+  14   1           {
+  15   2                clear_wdt();
+  16   2                if(base_10ms_f)
+  17   2                {
+  18   3                     base_10ms_f=0;
+  19   3                     Down_Clock();
+  20   3                     Clock(&clock);
+  21   3                     TimerNms_count();
+  22   3                     robam_task_ctrl();  //烟机运行时间计时
+  23   3                     uart_packet_deal(&panel_comm);
+  24   3                     update_all_inputs();          //输入控制数据更新
+  25   3                     if(!pon_1s)
+  26   3                     {
+  27   4                          if (hand_task.mode)
+  28   4                          {
+  29   5                               hand_gesture_scan(&hg);  
+  30   5                          }
+  31   4                     }
+  32   3                     else
+  33   3                     {
+  34   4                          pon_1s--;
+  35   4                     }
+  36   3                     if (pon_2s)
+  37   3                     {
+  38   4                          pon_2s--;
+  39   4                          leds.icon.byte=0xff;
+  40   4                          if(!pon_2s)
+  41   4                          leds.icon.byte=0;
+  42   4                     }
+  43   3                     else
+  44   3                     {
+  45   4                          product_task();     //逻辑处理  
+  46   4                     }
+  47   3                     
+  48   3                     
+  49   3                     update_all_output();//输出控制数据，进行控制
+  50   3                
+  51   3                }
+  52   2           }
+  53   1      }
+C51 COMPILER V9.54   MAIN                                                                  08/31/2022 15:02:54 PAGE 2   
+
+  54          
+  55          static void fct_test_task(void)
+  56          {
+  57   1          static u8 step = 0;
+  58   1          static u16 step_tmr = 100;
+  59   1      
+  60   1          u8 kv = kb.key_value;
+  61   1          u8 hv = hg.hand_value;
+  62   1          u8_dn(&fct_cont_tmr);
+  63   1          u16_dn(&step_tmr);
+  64   1          if (step == 0)
+  65   1          {   
+  66   2              step_tmr = 200;
+  67   2              step++;
+  68   2              display_all();
+  69   2              return;
+  70   2          }
+  71   1      
+  72   1          if (step == 1)
+  73   1          {
+  74   2              display_all();
+  75   2              if (step_tmr == 0)
+  76   2              {    
+  77   3                  step_tmr = 60;
+  78   3                  step++;
+  79   3              }
+  80   2      
+  81   2              return;
+  82   2          }
+  83   1      
+  84   1          display_clear();
+  85   1          if (step < (2+4))
+  86   1          {
+  87   2              if (step_tmr == 0)
+  88   2              {    
+  89   3                  step_tmr = 60;
+  90   3                  step++;
+  91   3                  colon_overturn=2;
+  92   3              }
+  93   2              switch (step-2)
+  94   2              {
+  95   3                   case 0: tm16xx_show_hex(0x8aaa); break;
+  96   3                   case 1: tm16xx_show_hex(0xa8aa); break;
+  97   3                   case 2: tm16xx_show_hex(0xaa8a); break;
+  98   3                   case 3: tm16xx_show_hex(0xaaa8); break;
+  99   3              }
+ 100   2              return;
+ 101   2          }
+ 102   1      
+ 103   1          if (step < (2+4+10))
+ 104   1          {
+ 105   2              if (step_tmr == 0)
+ 106   2              {    
+ 107   3                  step_tmr = 60;
+ 108   3                  step++;
+ 109   3              }
+ 110   2      
+ 111   2              tm16xx_show_num((step-6)*1111);
+ 112   2              return;
+ 113   2          } 
+ 114   1      
+ 115   1          if (step < (2+4+10+8))
+C51 COMPILER V9.54   MAIN                                                                  08/31/2022 15:02:54 PAGE 3   
+
+ 116   1          {
+ 117   2              if (step_tmr == 0)
+ 118   2              {    
+ 119   3                  step_tmr = 60;
+ 120   3                  step++;
+ 121   3              }
+ 122   2              switch (step-16)
+ 123   2              {
+ 124   3                   case 0: key_led_power = true; break;
+ 125   3                   case 1: key_led_linkage = true; break;
+ 126   3                   case 2: key_led_clock = true; break;
+ 127   3                   case 3: key_led_down  = true; break;
+ 128   3                   case 4: key_led_up  = true; break;
+ 129   3                   case 5: key_led_fried  = true; break;
+ 130   3                   case 6: key_led_clean  = true; break;
+ 131   3                   case 7: key_led_light = true; break;   
+ 132   3              }
+ 133   2              return;
+ 134   2          }
+ 135   1          if (step < (2+4+10+8+9))
+ 136   1          {
+ 137   2              if (step_tmr == 0)
+ 138   2              {    
+ 139   3                  step_tmr = 60;
+ 140   3                  step++;
+ 141   3              }
+ 142   2              tm16xx_show_stall(step-24); 
+ 143   2              return;
+ 144   2          }    
+ 145   1          if (hv == hand_right)  key_led_power  = true;
+ 146   1          if (hv == hand_left)  key_led_light  = true;     
+ 147   1          if (kv == key_power)  key_led_power  = true; 
+ 148   1          if (kv == key_linkage)key_led_linkage    = true; 
+ 149   1          if (kv == key_clock)  key_led_clock    = true;
+ 150   1          if (kv == key_down)   key_led_down    = true;
+ 151   1          if (kv == key_up)     key_led_up    = true;
+ 152   1          if (kv == key_fried)  key_led_fried    = true;
+ 153   1          if (kv == key_clean)  key_led_clean    = true;
+ 154   1          if (kv == key_light)  key_led_light    = true;
+ 155   1          if (kv == key_1  )    tm16xx_show_stall(key_1-8);
+ 156   1          if (kv == key_2  )    tm16xx_show_stall(key_2-8);
+ 157   1          if (kv == key_3  )    tm16xx_show_stall(key_3-8);
+ 158   1          if (kv == key_4  )    tm16xx_show_stall(key_4-8);
+ 159   1          if (kv == key_5  )    tm16xx_show_stall(key_5-8);
+ 160   1          if (kv == key_6  )    tm16xx_show_stall(key_6-8);
+ 161   1          if (kv == key_7  )    tm16xx_show_stall(key_7-8);
+ 162   1          if (kv == key_8  )    tm16xx_show_stall(key_8-8);       
+ 163   1          if(0==fct_cont_tmr)
+ 164   1          {
+ 165   2              colon_overturn=0;
+ 166   2              tm16xx_show_hex(0xbcdd);//显示PASS
+ 167   2          }
+ 168   1      }
+ 169          
+ 170          void product_task(void)
+ 171          {
+ 172   1           
+ 173   1           if (0x55 == fct_state)
+ 174   1          {
+ 175   2              fct_test_task();
+ 176   2              return;
+ 177   2          }
+C51 COMPILER V9.54   MAIN                                                                  08/31/2022 15:02:54 PAGE 4   
+
+ 178   1          system_tasks();                                         //产品控制逻辑代码
+ 179   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    792    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      3       3
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

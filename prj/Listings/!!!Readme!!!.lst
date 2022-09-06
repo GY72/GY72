@@ -1,0 +1,237 @@
+C51 COMPILER V9.54   ___README___                                                          08/16/2022 08:42:44 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE ___README___
+OBJECT MODULE PLACED IN .\Objects\!!!Readme!!!.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\lib\!!!Readme!!!.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRIN
+                    -T(.\Listings\!!!Readme!!!.lst) TABS(5) OBJECT(.\Objects\!!!Readme!!!.obj)
+
+line level    source
+
+   1          
+   2          
+   3          /*******************************
+   4          * 1、 buzzer 模块需要修改的地方：
+   5          ********************************/
+   6          #define MUSIC_BUZZ 0        //0: 普能蜂鸣器  1：音乐蜂鸣器
+   7          
+   8          /***********************音乐蜂鸣器*******************************/
+   9          //需要修改的管脚 PWM工作频率
+  10          #define BUZZ_PWR_PIN   P3_1       //音乐蜂鸣器电源控制脚
+  11          #define BUZZ_FRQ_PIN   P3_0       //音乐蜂鸣器频率控制脚
+  12          #define PWM_FREQ       375000     //PWM工作频率
+  13          
+  14          //需要修改的接口函数
+  15          void music_buzz_PwrOn(void);      
+  16          void music_buzz_PwrOff(void);
+  17          void music_buzz_FrqOff(void);
+  18          void music_buzz_SetFreq(u8 f);
+*** ERROR C141 IN LINE 18 OF ..\src\lib\!!!Readme!!!.c: syntax error near 'f', expected ')'
+  19          
+  20          /************************普通蜂鸣器******************************/
+  21          //需要修改的管脚 PWM 4KHz 设置参数
+  22          #define BUZZ_FRQ_PIN   P3_3
+*** WARNING C317 IN LINE 22 OF ..\src\lib\!!!Readme!!!.c: attempt to redefine macro 'BUZZ_FRQ_PIN'
+  23          #define F_4KHZ         3000         //(Fpwm/(4*1000))
+  24          
+  25          //需要修改的接口函数
+  26          void buzz_on(void);
+  27          void buzz_off(void);
+  28          
+  29          /*******************************
+  30              buzzer 模块使用步骤：
+  31          ********************************/
+  32          //a、配置   
+  33              #define MUSIC_BUZZ 0/1
+*** WARNING C317 IN LINE 33 OF ..\src\lib\!!!Readme!!!.c: attempt to redefine macro 'MUSIC_BUZZ'
+  34            
+  35          //b、初始化
+  36              normal_buzz_init();
+  37          
+  38          //c、调用
+  39              10ms调用一次 normal_buzz_ctrl();
+*** ERROR C141 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: syntax error near '10'
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xE8 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xB0 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0x83 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xE7 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0x94 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xA8 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xE4 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xB8 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0x80 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xE6 skipped
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xAC skipped
+C51 COMPILER V9.54   ___README___                                                          08/16/2022 08:42:44 PAGE 2   
+
+*** ERROR C100 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: unprintable character 0xA1 skipped
+*** ERROR C129 IN LINE 39 OF ..\src\lib\!!!Readme!!!.c: missing ';' before 'normal_buzz_ctrl'
+  40          
+  41              需要响的地方：normal_buzz_start(BUZZ_WARNING);  等
+  42          
+  43          
+  44          
+  45          
+  46          
+  47          
+  48          
+  49          /*******************************
+  50           * 2、key 模块需要修改的地方：
+  51          ********************************/
+  52          #define TPERSCAN        25           //调用key_board_waitup函数的周期，根据实际修改
+  53          
+  54          /***************************************************************/
+  55          //需要修改的接口函数:    
+  56          u8 key_scan(void);    
+  57          
+  58          /***************************************************************/
+  59          //根据实际修改键值索引值
+  60          #define key_onoff    1
+  61          #define key_door     2
+  62          #define key_qxx      3
+  63          #define key_ckx      4
+  64          #define key_jnx      5
+  65          #define key_gsx      6
+  66          #define key_hxx      7
+  67          #define key_hg       8
+  68          #define key_zjj      9
+  69          #define key_rest     10
+  70          #define key_start    10
+  71          #define key_seth     11 
+  72          #define key_selfchk  12
+  73          #define key_aging    13
+  74          
+  75          /*******************************
+  76              key 模块使用步骤：
+  77          ********************************/
+  78          //a、初始化
+  79              key_board_init(&kb);
+  80          
+  81          //b、主循环中调用
+  82              key_board_scan(&kb);
+  83          
+  84          //c、键处理注意事项
+  85              键处理可参考:
+  86              work_task_key_deal();
+  87              standby_key_deal();
+  88              setting_key_deal();
+  89          
+  90          
+  91          
+  92          
+  93          
+  94          
+  95          
+  96          
+  97          
+  98          
+  99          
+C51 COMPILER V9.54   ___README___                                                          08/16/2022 08:42:44 PAGE 3   
+
+ 100          /********************************
+ 101           * 3、uart 模块需要修改的地方：
+ 102          *********************************/
+ 103          //uart发送，写入sbuf
+ 104          void uart_send_byte(u8 id, u8 da);
+ 105          
+ 106          //接收uart，读sbuf
+ 107          static u8 uart_recv_byte(u8 id);
+ 108          
+ 109          //设置UART接收故障标志
+ 110          static void set_rx_error(u8 id, bool f);
+ 111          
+ 112          /*******************************
+ 113              uart 模块使用步骤：
+ 114          ********************************/
+ 115          
+ 116          //a、分配uart
+ 117          #define ID_UART_PANEL ID_UART1
+ 118          #define ID_UART_MOTOR ID_UART0
+ 119          
+ 120          //b、定义
+ 121          UART_t  panel_comm,motor_comm;
+ 122          
+ 123          //c、初始化
+ 124              uart_init(&panel_comm,ID_UART_PANEL);
+ 125              uart_init(&motor_comm,ID_UART_MOTOR);
+ 126          
+ 127          //d、数据包处理回调函数
+ 128          void process_packet(UART_t * c_uart)
+ 129          {
+ 130              static u8 motor_err_ct = 0;
+ 131              u16 temp;
+ 132          
+ 133              if (c_uart->uart_id == ID_UART_PANEL)
+ 134              {
+ 135                  if (c_uart->rx_buf[2] == 'P')
+ 136                  {//Panel 面板数据包
+ 137                      comm_rs_err     = (c_uart->rx_buf[3] == 0x55) ? true : false;  //发送端接收故障
+ 138                      key_pins        = MAKEWORD(c_uart->rx_buf[4],c_uart->rx_buf[5]) ;
+ 139                      key_board_scan(&kb);
+ 140          
+ 141                      return;
+ 142                  }
+ 143          
+ 144                  return;
+ 145              }
+ 146          
+ 147              if (c_uart->uart_id == ID_UART_MOTOR)
+ 148              {
+ 149                  if (c_uart->rx_buf[2] == 'M')
+ 150                  {//motor 数据包
+ 151                      motor_rs_err        = (c_uart->rx_buf[3] == 0x55) ? true : false;   //发送端接收故障
+ 152                      temp                = MAKEWORD(c_uart->rx_buf[4],c_uart->rx_buf[5]) ;
+ 153          
+ 154                      return;
+ 155                  }
+ 156          
+ 157                  return;
+ 158              }
+ 159          }
+ 160          
+ 161          //e、10ms调用一次包处理函数
+C51 COMPILER V9.54   ___README___                                                          08/16/2022 08:42:44 PAGE 4   
+
+ 162              uart_packet_deal(&panel_comm);
+ 163              uart_packet_deal(&motor_comm);
+ 164          
+ 165          //f、ms中断中调用字节接收超时函数
+ 166              uart_byte_tmr_dn(&panel_comm);
+ 167              uart_byte_tmr_dn(&motor_comm);
+ 168          
+ 169          //g、uart中断中调用接收发送函数
+ 170              //...
+ 171              RI = 0;          
+ 172              uart_recv_byte_isr(&motor_comm);
+ 173              //...
+ 174          
+ 175              //...
+ 176              TI = 0; 
+ 177              uart_send_byte_isr(&motor_comm);
+ 178              //...
+ 179          
+ 180          
+ 181          
+ 182          
+ 183          
+ 184          
+ 185          
+ 186          
+ 187          
+ 188          
+ 189          
+ 190          
+ 191          
+ 192          
+ 193          
+ 194          
+ 195          
+ 196          
+ 197          
+ 198          
+ 199          
+ 200          
+ 201          
+ 202          
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  15 ERROR(S)

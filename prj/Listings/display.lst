@@ -1,0 +1,116 @@
+C51 COMPILER V9.54   DISPLAY                                                               08/31/2022 15:02:54 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE DISPLAY
+OBJECT MODULE PLACED IN .\Objects\display.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\bsp\display.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRI
+                    -NT(.\Listings\display.lst) TABS(5) OBJECT(.\Objects\display.obj)
+
+line level    source
+
+   1          
+   2          #include "..\include_s.h"
+   3          
+   4          /***************************************************/
+   5          
+   6          #define key_led_power_pin     P3_3                //电源
+   7          #define key_led_linkage_pin   P3_2                 //联动
+   8          #define key_led_clock_pin      P3_6                //时钟
+   9          #define key_led_down_pin      P3_7                 //减档
+  10          #define key_led_up_pin           P2_2                   //加档
+  11          #define key_led_fried_pin        P2_5                  //爆炒
+  12          #define key_led_clean_pin      P2_4                    //清洗
+  13          #define key_led_light_pin        P5_2                    //照明
+  14          
+  15          iram Display_T leds;
+  16          /***************************************************/
+  17          void display_all(void)
+  18          {
+  19   1          tm16xx_all_show();
+  20   1          leds.icon.byte=0xff;
+  21   1      }
+  22          
+  23          void display_clear(void)
+  24          {
+  25   1           tm16xx_clser();
+  26   1           leds.icon.byte=0;
+  27   1      }
+  28          
+  29          void dis_digital_screen(void)
+  30          {
+  31   1           
+  32   1      //     Down_Tmer.hour_cnt*
+  33   1      }
+  34          
+  35          void dis_level_light(void)
+  36          {
+  37   1                
+  38   1      }
+  39          
+  40          void wheel_display(void)
+  41          {
+  42   1           
+  43   1      }
+  44          
+  45          void display_drive(void)
+  46          {                        
+  47   1           tm16xx_drive();
+  48   1           key_led_power_pin=key_led_power;
+  49   1           key_led_linkage_pin=key_led_linkage;
+  50   1           key_led_clock_pin=key_led_clock;
+  51   1           key_led_down_pin=key_led_down;
+  52   1           key_led_up_pin=key_led_up;
+  53   1           key_led_fried_pin=key_led_fried;
+  54   1           key_led_clean_pin=key_led_clean;
+C51 COMPILER V9.54   DISPLAY                                                               08/31/2022 15:02:54 PAGE 2   
+
+  55   1           SETBANK1;
+  56   1           key_led_light_pin=key_led_light;
+  57   1           SETBANK0;
+  58   1      }
+  59          
+  60          /* 
+  61              TB = TSYS*256*DISCOM
+  62              TLED = TB *S
+  63          
+  64              TB 为 LED 单 COM 扫描宽度， TSYS 为系统时钟宽度, TLED 为 LED 扫描时间宽度
+  65              S  为 LED 扫描的 COM 数量 
+  66          
+  67              DISCOM = (TLED/S) / (Tsys*256) = (TLED) / (S*Tsys*256)
+  68          */
+  69          void sh79f328_led_init(void)
+  70          {
+  71   1      //    LEDCON = 0x0;           //模式 1
+  72   1      //    DISCOM = 78;            //设置单 COM 扫描时间 @5ms
+  73   1      //    LEDDZ  = 0x10;          //设置死区时间, 建议LED死区时间设置大于10个系统时钟（L
+             -EDDZ > 0AH） 。
+  74   1      //        
+  75   1      //    SEG01  = bit10000000;   //
+  76   1      //    SEG02  = bit00111111;   //LED_S9~LED_S12 复用打开
+  77   1      //    LEDCOM = 0x03;          //LED_C1~LED_C2 复用打开
+  78   1      //        
+  79   1      //    LEDCON |= 0x80; //使能 LED 驱动
+  80   1      }
+  81          
+  82          
+  83          
+  84          
+  85          
+  86          
+  87          
+  88          
+  89          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     97    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =      2    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

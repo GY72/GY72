@@ -1,0 +1,1 @@
+"..\src\lib\queue.c" OPTIMIZE (8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\queue.lst) TABS (5) OBJECT(.\Objects\queue.obj)

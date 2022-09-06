@@ -1,0 +1,427 @@
+C51 COMPILER V9.54   TM16XX                                                                08/31/2022 15:02:56 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE TM16XX
+OBJECT MODULE PLACED IN .\Objects\tm16xx.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\lib\tm16xx.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRIN
+                    -T(.\Listings\tm16xx.lst) TABS(5) OBJECT(.\Objects\tm16xx.obj)
+
+line level    source
+
+   1          
+   2          #include "..\include_s.h"
+   3          
+   4          /***************************************************/
+   5          #define TM16xx_DIO    P2_7
+   6          #define TM16xx_CLK    P2_6
+   7          #define TM16xx_STB    P4_1
+   8          
+   9          /***************************************************/
+  10          // 8 + n * 18
+  11          
+  12          u16 num_value=0;
+  13          u8 colon_overturn=2;
+  14          crom u16 Led_Num[]=
+  15          {
+  16               LED_A|LED_B|LED_C|LED_D|LED_E|LED_F,
+  17               LED_B|LED_C,
+  18               LED_A|LED_B|LED_D|LED_E|LED_G,
+  19               LED_A|LED_B|LED_C|LED_D|LED_G,
+  20               LED_B|LED_C|LED_F|LED_G,
+  21               LED_A|LED_C|LED_D|LED_F|LED_G,
+  22               LED_A|LED_C|LED_D|LED_E|LED_F|LED_G,
+  23               LED_A|LED_B|LED_C,
+  24               LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G,
+  25               LED_A|LED_B|LED_C|LED_D|LED_F|LED_G,
+  26               0,
+  27               LED_A|LED_B|LED_E|LED_F|LED_G,                              //P
+  28               LED_A|LED_B|LED_C|LED_E|LED_F|LED_G,   //A
+  29               LED_A|LED_C|LED_D|LED_F|LED_G,   //S
+  30          };
+  31          
+  32          crom u16 Led_Circle[]=
+  33          {
+  34               0x00,
+  35               LED_A|LED_B,
+  36               LED_A|LED_B|LED_C|LED_D,
+  37               LED_A|LED_B|LED_C|LED_D|LED_E|LED_F,
+  38               LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H,
+  39          };
+  40          
+  41          u8 Led_Show[14];
+  42          static void n_nop(u8 n)
+  43          {
+  44   1          while(n--);
+  45   1      }
+  46          
+  47          static void send_byte(u8 dat)
+  48          {
+  49   1          u8 i;
+  50   1      
+  51   1          for (i = 0; i < 8; i++)
+  52   1          {
+  53   2              TM16xx_DIO = (1 & dat) ? 1 : 0;
+  54   2              dat >>= 1;
+C51 COMPILER V9.54   TM16XX                                                                08/31/2022 15:02:56 PAGE 2   
+
+  55   2              
+  56   2              TM16xx_CLK = 0;
+  57   2              NOP();
+  58   2              NOP();
+  59   2              TM16xx_CLK = 1;
+  60   2              NOP();
+  61   2              NOP();
+  62   2         }
+  63   1      }
+  64          
+  65          /****************************************
+  66           * 函数名：     tm16xx_drive
+  67           * 说明：   更新TM1628显示数据
+  68           * 输入：   --
+  69           * 输出：   --
+  70           ****************************************/
+  71          void tm16xx_drive(void)
+  72          {
+  73   1           static u8 i;
+  74   1      
+  75   1          TM16xx_STB = 0;
+  76   1          _nop_();
+  77   1          _nop_();
+  78   1          send_byte(0x03);                    //7 位 10 段
+  79   1          
+  80   1          TM16xx_STB = 1;
+  81   1          _nop_();
+  82   1          _nop_();
+  83   1          TM16xx_STB = 0;
+  84   1          _nop_();
+  85   1          _nop_();
+  86   1          send_byte(0x40);                    //地址自动加一
+  87   1          TM16xx_STB = 1;
+  88   1          _nop_();
+  89   1          _nop_();
+  90   1          TM16xx_STB = 0;
+  91   1          _nop_();
+  92   1          _nop_();
+  93   1          send_byte(0xC0);               //起始地址
+  94   1          
+  95   1          for(i=0;i<14;i++)
+  96   1          {
+  97   2              send_byte(Led_Show[i]);
+  98   2          }
+  99   1          
+ 100   1          
+ 101   1          TM16xx_STB = 1;    
+ 102   1          _nop_();
+ 103   1          _nop_();
+ 104   1      
+ 105   1          TM16xx_STB = 0;
+ 106   1          _nop_();
+ 107   1          _nop_();
+ 108   1          send_byte(0x88+3);                    //开启显示0~7显示亮度
+ 109   1          
+ 110   1          TM16xx_STB = 1;
+ 111   1          
+ 112   1      }
+ 113          
+ 114          /****************************************
+ 115           * 函数名：     tm16xx_show_num
+ 116           * 说明：    四位数码管显示，配合tm16xx_drive函数使用
+C51 COMPILER V9.54   TM16XX                                                                08/31/2022 15:02:56 PAGE 3   
+
+ 117           * 输入：   0~9999
+ 118           * 输出：   --
+ 119           ****************************************/
+ 120          void tm16xx_show_num(unsigned int num)
+ 121          {      
+ 122   1          if(num<10000)
+ 123   1          {
+ 124   2               if(minute_twinkle)
+ 125   2               {
+ 126   3                    Led_Show[6] =0;
+ 127   3                    Led_Show[7] =0;
+ 128   3                    Led_Show[8] =colon_overturn;               
+ 129   3                    Led_Show[9] =0;
+ 130   3               }         
+ 131   2               else
+ 132   2               {
+ 133   3                    Led_Show[6] =(u8)(Led_Num[num%10]);               
+ 134   3                    Led_Show[7] =(u8)(Led_Num[num%10]>>8);              
+ 135   3                    Led_Show[8] =(u8)(Led_Num[(num/10)%10]+colon_overturn);               
+ 136   3                    Led_Show[9] =(u8)(Led_Num[(num/10)%10]>>8);
+ 137   3               }
+ 138   2               if(hour_twinkle)
+ 139   2               {
+ 140   3                     Led_Show[10] =colon_overturn;
+ 141   3                     Led_Show[11] =0;
+ 142   3                     Led_Show[12] =0;               
+ 143   3                     Led_Show[13] =0;
+ 144   3               }
+ 145   2               else
+ 146   2               {
+ 147   3                     Led_Show[10] =(u8)(Led_Num[(num/100)%10]+colon_overturn);     //加二显示冒号         
+             - 
+ 148   3                     Led_Show[11] =(u8)(Led_Num[(num/100)%10]>>8); 
+ 149   3                     Led_Show[12] =(u8)(Led_Num[num/1000]);               
+ 150   3                     Led_Show[13] =(u8)(Led_Num[num/1000]>>8);
+ 151   3               }
+ 152   2               
+ 153   2          }
+ 154   1      }
+ 155          /****************************************
+ 156           * 函数名：     tm16xx_show_hex
+ 157           * 说明：    16进制数显示，配合tm16xx_drive函数使用
+ 158           * 输入：   0~0xffff
+ 159           * 输出：   --
+ 160           ****************************************/
+ 161          void tm16xx_show_hex(unsigned int num)
+ 162          {      
+ 163   1                    Led_Show[6] =(u8)(Led_Num[num%16]);               
+ 164   1                    Led_Show[7] =(u8)(Led_Num[num%16]>>8);              
+ 165   1                    Led_Show[8] =(u8)(Led_Num[(num/16)%16]+colon_overturn);               
+ 166   1                    Led_Show[9] =(u8)(Led_Num[(num/16)%16]>>8);
+ 167   1               
+ 168   1                     Led_Show[10] =(u8)(Led_Num[(num/256)%16]+colon_overturn);     //加二显示冒号         
+             - 
+ 169   1                     Led_Show[11] =(u8)(Led_Num[(num/256)%16]>>8); 
+ 170   1                     Led_Show[12] =(u8)(Led_Num[num/4096]);               
+ 171   1                     Led_Show[13] =(u8)(Led_Num[num/4096]>>8);
+ 172   1      }
+ 173          /****************************************
+ 174           * 函数名：     tm16xx_show_3_num
+ 175           * 说明：    从左数第三个数码管显示，其余不显示，配合tm16xx_drive函数使用
+ 176           * 输入：   0~9999
+C51 COMPILER V9.54   TM16XX                                                                08/31/2022 15:02:56 PAGE 4   
+
+ 177           * 输出：   --
+ 178           ****************************************/
+ 179          void tm16xx_show_3_num(unsigned char num)
+ 180          {      
+ 181   1          Led_Show[6] =0;
+ 182   1          Led_Show[7] =0;
+ 183   1          Led_Show[8] =(u8)(Led_Num[num]);             
+ 184   1          Led_Show[9] =(u8)(Led_Num[num]>>8); 
+ 185   1          Led_Show[10] =0;
+ 186   1          Led_Show[11] =0;
+ 187   1          Led_Show[12] =0;               
+ 188   1          Led_Show[13] =0;
+ 189   1      }
+ 190          
+ 191          /****************************************
+ 192           * 函数名：     tm16xx_show_stall
+ 193           * 说明：   圆圈亮的范围，配合tm16xx_drive函数使用
+ 194           * 输入：   0~8
+ 195           * 输出：   --
+ 196           ****************************************/
+ 197          void tm16xx_show_stall(u8 stall)
+ 198          {
+ 199   1            if(stall)
+ 200   1            {
+ 201   2                Led_Show[2]&=~(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 202   2                Led_Show[3]&=~(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 203   2                Led_Show[4]&=~(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 204   2                Led_Show[5]&=~(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 205   2                
+ 206   2                Led_Show[0]&=~(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 207   2                Led_Show[1]&=~(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 208   2                Led_Show[0]&=~(u8)(LED_I);
+ 209   2                Led_Show[2]&=~(u8)(LED_I);
+ 210   2                Led_Show[4]&=~(u8)(LED_I);
+ 211   2                Led_Show[6]&=~(u8)(LED_I);
+ 212   2                Led_Show[8]&=~(u8)(LED_I);
+ 213   2                Led_Show[10]&=~(u8)(LED_I);
+ 214   2                Led_Show[6]&=~(u8)(LED_H);
+ 215   2                Led_Show[12]&=~(u8)(LED_I);
+ 216   2            }
+ 217   1               switch(stall)
+ 218   1               {
+ 219   2                     case 0:   Led_Show[2]&=~(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 220   2                               Led_Show[3]&=~(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 221   2                               Led_Show[4]&=~(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 222   2                               Led_Show[5]&=~(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 223   2                               
+ 224   2                               Led_Show[0]&=~(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 225   2                               Led_Show[1]&=~(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 226   2                               Led_Show[0]&=~(u8)(LED_I);
+ 227   2                               Led_Show[2]&=~(u8)(LED_I);
+ 228   2                               Led_Show[4]&=~(u8)(LED_I);
+ 229   2                               Led_Show[6]&=~(u8)(LED_I);
+ 230   2                               Led_Show[8]&=~(u8)(LED_I);
+ 231   2                               Led_Show[10]&=~(u8)(LED_I);
+ 232   2                               Led_Show[6]&=~(u8)(LED_H);
+ 233   2                               Led_Show[12]&=~(u8)(LED_I);break;
+ 234   2                     case 1:   
+ 235   2                               Led_Show[2]|=(u8)((LED_A|LED_B));
+ 236   2                               Led_Show[3]|=(u8)((LED_A|LED_B)>>8);
+ 237   2                               Led_Show[4]|=(u8)((LED_A|LED_B));
+ 238   2                               Led_Show[5]|=(u8)((LED_A|LED_B)>>8);
+C51 COMPILER V9.54   TM16XX                                                                08/31/2022 15:02:56 PAGE 5   
+
+ 239   2                               break;
+ 240   2                               
+ 241   2                     case 2:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D);
+ 242   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D)>>8);
+ 243   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D);
+ 244   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D)>>8);
+ 245   2                               break;
+ 246   2                               
+ 247   2                case 3:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F);
+ 248   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F)>>8);
+ 249   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F);
+ 250   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F)>>8);
+ 251   2                               break;
+ 252   2                               
+ 253   2                case 4:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 254   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 255   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 256   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 257   2                               break;
+ 258   2                               
+ 259   2                case 5:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 260   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 261   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 262   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 263   2                               
+ 264   2                               Led_Show[0]|=(u8)(LED_A|LED_B);
+ 265   2                               Led_Show[1]|=(u8)((LED_A|LED_B)>>8);
+ 266   2                               Led_Show[6]|=(u8)(LED_H);
+ 267   2                               Led_Show[12]|=(u8)(LED_I);
+ 268   2                               break;
+ 269   2                               
+ 270   2                case 6:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 271   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 272   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 273   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 274   2                               
+ 275   2                               Led_Show[0]|=(u8)(u8)(LED_A|LED_B|LED_C|LED_D);
+ 276   2                               Led_Show[1]|=(u8)((LED_A|LED_B|LED_C|LED_D)>>8);
+ 277   2                               Led_Show[8]|=(u8)(LED_I);
+ 278   2                               Led_Show[10]|=(u8)(LED_I);
+ 279   2                               Led_Show[6]|=(u8)(LED_H);
+ 280   2                               Led_Show[12]|=(u8)(LED_I);
+ 281   2                               break;
+ 282   2                               
+ 283   2                case 7:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 284   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 285   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 286   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 287   2                               
+ 288   2                               Led_Show[0]|=(u8)(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F);
+ 289   2                               Led_Show[1]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F)>>8);
+ 290   2                               Led_Show[4]|=(u8)(LED_I);
+ 291   2                               Led_Show[6]|=(u8)(LED_I);
+ 292   2                               Led_Show[8]|=(u8)(LED_I);
+ 293   2                               Led_Show[10]|=(u8)(LED_I);
+ 294   2                               Led_Show[6]|=(u8)(LED_H);
+ 295   2                               Led_Show[12]|=(u8)(LED_I);
+ 296   2                               break;
+ 297   2                     
+ 298   2                case 8:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 299   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 300   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+C51 COMPILER V9.54   TM16XX                                                                08/31/2022 15:02:56 PAGE 6   
+
+ 301   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 302   2                               
+ 303   2                               Led_Show[0]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 304   2                               Led_Show[1]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 305   2                               Led_Show[0]|=(u8)(LED_I);
+ 306   2                               Led_Show[2]|=(u8)(LED_I);
+ 307   2                               Led_Show[4]|=(u8)(LED_I);
+ 308   2                               Led_Show[6]|=(u8)(LED_I);
+ 309   2                               Led_Show[8]|=(u8)(LED_I);
+ 310   2                               Led_Show[10]|=(u8)(LED_I);
+ 311   2                               Led_Show[6]|=(u8)(LED_H);
+ 312   2                               Led_Show[12]|=(u8)(LED_I);
+ 313   2                               break;
+ 314   2                case 9:   Led_Show[2]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 315   2                               Led_Show[3]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 316   2                               Led_Show[4]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 317   2                               Led_Show[5]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 318   2                               
+ 319   2                               Led_Show[0]|=(u8)(LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H);
+ 320   2                               Led_Show[1]|=(u8)((LED_A|LED_B|LED_C|LED_D|LED_E|LED_F|LED_G|LED_H)>>8);
+ 321   2                               Led_Show[0]|=(u8)(LED_I);
+ 322   2                               Led_Show[2]|=(u8)(LED_I);
+ 323   2                               Led_Show[4]|=(u8)(LED_I);
+ 324   2                               Led_Show[6]|=(u8)(LED_I);
+ 325   2                               Led_Show[8]|=(u8)(LED_I);
+ 326   2                               Led_Show[10]|=(u8)(LED_I);
+ 327   2                               Led_Show[6]|=(u8)(LED_H);
+ 328   2                               Led_Show[12]|=(u8)(LED_I);
+ 329   2                               break;
+ 330   2                     default:      stall=0 ;break;
+ 331   2               }
+ 332   1      }
+ 333          
+ 334          /****************************************
+ 335           * 函数名：     tm16xx_clser
+ 336           * 说明：   清屏，配合tm16xx_drive函数使用
+ 337           * 输入：   --
+ 338           * 输出：   --
+ 339           ****************************************/
+ 340          void tm16xx_clser(void)
+ 341          {
+ 342   1          static u8 i;  
+ 343   1          for(i=0;i<14;i++)
+ 344   1          {
+ 345   2              Led_Show[i]=0x00;
+ 346   2          }
+ 347   1      }
+ 348          /****************************************
+ 349           * 函数名：     tm16xx_clser
+ 350           * 说明：   全亮，配合tm16xx_drive函数使用
+ 351           * 输入：   --
+ 352           * 输出：   --
+ 353           ****************************************/
+ 354          void tm16xx_all_show(void)
+ 355          {
+ 356   1          static u8 i;  
+ 357   1          for(i=0;i<14;i++)
+ 358   1          {
+ 359   2              Led_Show[i]=0xff;
+ 360   2          }
+ 361   1      }
+ 362          /****************************************
+C51 COMPILER V9.54   TM16XX                                                                08/31/2022 15:02:56 PAGE 7   
+
+ 363           * 函数名：     tm16xx_show_num_stall
+ 364           * 说明：   显示数字和光环长度，配合tm16xx_drive函数使用
+ 365           * 输入：   --
+ 366           * 输出：   --
+ 367           ****************************************/
+ 368          void tm16xx_show_num_stall(u16 num,u8 stall)
+ 369          {
+ 370   1           tm16xx_show_num(num);
+ 371   1           tm16xx_show_stall(stall);
+ 372   1      }
+ 373          /****************************************
+ 374           * 函数名：     tm16xx_show_colon
+ 375           * 说明：   调用该函数实现数码管冒号的亮灭翻转
+ 376           * 输入：   --
+ 377           * 输出：   --
+ 378           ****************************************/
+ 379          void tm16xx_show_colon(void)
+ 380          {
+ 381   1           if(colon_overturn)
+ 382   1           {
+ 383   2               colon_overturn=0;
+ 384   2           }
+ 385   1           else
+ 386   1           {
+ 387   2                colon_overturn=2;
+ 388   2           }     
+ 389   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1257    ----
+   CONSTANT SIZE    =     38    ----
+   XDATA SIZE       =     20    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

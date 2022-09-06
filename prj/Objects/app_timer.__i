@@ -1,0 +1,1 @@
+"..\src\lib\app_timer.c" LARGE OPTIMIZE (8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\app_timer.lst) TABS (5) OBJECT(.\Objects\app_timer.obj)

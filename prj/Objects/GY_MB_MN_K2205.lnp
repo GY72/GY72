@@ -1,0 +1,26 @@
+".\Objects\inputs.obj",
+".\Objects\interrupt_s.obj",
+".\Objects\mcu.obj",
+".\Objects\outputs.obj",
+".\Objects\gesture.obj",
+".\Objects\display.obj",
+".\Objects\main.obj",
+".\Objects\system.obj",
+".\Objects\app_timer.obj",
+".\Objects\buzzer.obj",
+".\Objects\key_v2.3.obj",
+".\Objects\key_v2.3_lib.obj",
+".\Objects\misc.obj",
+".\Objects\tm1640.obj",
+".\Objects\uart.obj",
+".\Objects\protocol.obj",
+".\Objects\handgesture.obj",
+".\Objects\tm16xx.obj",
+".\Objects\eeprom.obj",
+".\Objects\sino_tk_isr.obj",
+"..\src\sino_touchkey\Lib_Src\TouchKey_JHB_Large_V5.2.LIB" 
+TO ".\Objects\GY_MB_MN_K2205" 
+PRINT(".\Listings\GY_MB_MN_K2205.m51") RAMSIZE(256) 
+DISABLEWARNING (16) 
+CODE( 0X0000-0X7FFF )
+XDATA( 0X0000-0X04FF )

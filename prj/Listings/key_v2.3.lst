@@ -1,0 +1,163 @@
+C51 COMPILER V9.54   KEY_V2_3                                                              08/31/2022 15:02:54 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE KEY_V2_3
+OBJECT MODULE PLACED IN .\Objects\key_v2.3.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\lib\key_v2.3.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PR
+                    -INT(.\Listings\key_v2.3.lst) TABS(5) OBJECT(.\Objects\key_v2.3.obj)
+
+line level    source
+
+   1          /****************************************************************************
+   2           * key.c
+   3           *
+   4           *    Copyright (C) Hiklife. All rights reserved.
+   5           *   Author: Lgx <lgx@hiklife.com> 2019-03
+   6           * 
+   7           *  按键相关函数
+   8           *
+   9           ****************************************************************************/
+  10          
+  11          #include "..\include_s.h"
+  12          
+  13          u16 scan_key;
+  14          
+  15          iram Key_Inst_t kb;
+  16          
+  17          u8 crom Down_ct = TDn_Ct;
+  18          
+  19          /****************************************
+  20           * 函数名：     key_scan 
+  21           * 说明：   根据按键采样值返回预定义键值
+  22           * 输入：   -- 
+  23           * 输出：   u16
+  24           ****************************************/
+  25          void get_scan_value(void)
+  26          {
+  27   1      //    static u8  step = 0;
+  28   1      //    static u32 scan_key0 = 0;
+  29   1      
+  30   1      //    if (step == 0)
+  31   1      //    {
+  32   1      //        scan_key0 = get_tk_scanvalue(0);            //max 3ms
+  33   1      //        step = 1;
+  34   1      //        return;
+  35   1      //    }
+  36   1      
+  37   1      //    if (step == 1)
+  38   1      //    {
+  39   1      //        scan_key  = get_tk_scanvalue(1);            //max 3ms
+  40   1      
+  41   1      //        scan_key += scan_key0;
+  42   1      
+  43   1      ////        get_tk_slider_pos(scan_key >> 16);          //滑条少，左右两边还要能按，可以用
+             -按键来处理。
+  44   1      //        scan_key = (scan_key & 0xffff);// | (0x8000 & (scan_key >> 6));
+  45   1      //        step = 0;
+  46   1      //    }    
+  47   1      }
+  48          /****************************************
+  49           * 函数名：     key_scan 
+  50           * 说明：   根据按键采样值返回预定义键值
+  51           * 输入：   -- 
+  52           * 输出：   u16
+  53           ****************************************/
+C51 COMPILER V9.54   KEY_V2_3                                                              08/31/2022 15:02:54 PAGE 2   
+
+  54          u8 key_scan(void)
+  55          {
+  56   1           u16 keyscanval = 0;
+  57   1      
+  58   1          keyscanval = scan_key;           //按键采样值，一个位代表一个按键，1：按下; 
+  59   1      
+  60   1          if (keyscanval)
+  61   1           {
+  62   2               switch (keyscanval)
+  63   2                {
+  64   3                  case      K1: return key_power ;                      
+  65   3                  case      K2: return key_linkage  ;                  
+  66   3                  case      K3:return key_clock ;                       
+  67   3                  case      K4: return key_down  ;                     
+  68   3                  case      K5: return key_up  ;                        
+  69   3                  case      K6: return key_fried   ;
+  70   3                  case      K7: return key_clean ; 
+  71   3                  case      K8:return key_light ;  
+  72   3                  case      K9: return key_1 ;
+  73   3                  case      K10: return key_2  ;                  
+  74   3                  case      K11:return key_3 ;                      
+  75   3                  case      K12: return key_4  ;                  
+  76   3                  case      K13:return key_5 ;                          
+  77   3                  case      K14: return key_6  ;                       
+  78   3                  case      K15: return key_7  ;                        
+  79   3                  case      K16: return key_8  ;
+  80   3                     default:  
+  81   3                          return skey_err;        
+  82   3                }
+  83   2          }
+  84   1      
+  85   1           return skey_none;
+  86   1      }
+  87          
+  88          /****************************************
+  89           * 函数名：     key_time_count 
+  90           * 说明：   按键按下计时
+  91           * 输入：   Key_Inst_t指针 
+  92           * 输出：   --
+  93           ****************************************/
+  94          void key_time_count(Key_Inst_t * kb)
+  95          {
+  96   1           kb->key_keep_ct++;                                     
+  97   1           if (kb->key_interval < 239)
+  98   1              kb->key_interval++;
+  99   1          else
+ 100   1              kb->key_interval = 0;  
+ 101   1      
+ 102   1          kb->key_state = skey_none;                      //2021-04-07
+ 103   1           switch (kb->key_keep_ct)
+ 104   1           {
+ 105   2                case 1:
+ 106   2                     kb->key_state = skey_new;                    //
+ 107   2                     break;
+ 108   2      
+ 109   2              case TDN1D0SEC:
+ 110   2                     kb->key_state = skey_1s_dn;                  //按下1s
+ 111   2                     break;
+ 112   2                
+ 113   2              case TDN1D5SEC:
+ 114   2                     kb->key_state = skey_1s5_dn;            //按下1.5s
+ 115   2                     break;
+C51 COMPILER V9.54   KEY_V2_3                                                              08/31/2022 15:02:54 PAGE 3   
+
+ 116   2                
+ 117   2              case TDN2D0SEC:
+ 118   2                     kb->key_state = skey_2s_dn;                 //按下2s
+ 119   2                     break;
+ 120   2      
+ 121   2                case TDN3D0SEC:
+ 122   2                     kb->key_state = skey_3s_dn;                  //按下3.0s
+ 123   2                     break;
+ 124   2      
+ 125   2                case TDN5D0SEC:
+ 126   2                     kb->key_state = skey_5s_dn;                  //按下5.0s
+ 127   2                     break;
+ 128   2                
+ 129   2                default:
+ 130   2                  if (kb->key_keep_ct > 250)
+ 131   2                          kb->key_keep_ct = 250;                //t = 250*TPERSCAN*TDn_Ct
+ 132   2           }
+ 133   1      }
+ 134          /* [] END OF FILE */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    271    ----
+   CONSTANT SIZE    =      1    ----
+   XDATA SIZE       =      2    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =      4    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

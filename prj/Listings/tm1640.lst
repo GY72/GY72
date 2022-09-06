@@ -1,0 +1,194 @@
+C51 COMPILER V9.54   TM1640                                                                08/31/2022 15:02:55 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE TM1640
+OBJECT MODULE PLACED IN .\Objects\tm1640.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\lib\tm1640.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRIN
+                    -T(.\Listings\tm1640.lst) TABS(5) OBJECT(.\Objects\tm1640.obj)
+
+line level    source
+
+   1          #include "..\include_s.h"
+   2          
+   3          unsigned char Show_Num[]={0x3f,0x18,0x76,0x7c,0x59,0x6d,0x6f,0x38,0x7f,0x79};
+   4          COUNT_DOWN Delay_Count;
+   5          
+   6          void delay(void)
+   7          {
+   8   1           _nop_();
+   9   1           _nop_();
+  10   1           _nop_();
+  11   1           _nop_();
+  12   1           _nop_();
+  13   1      }
+  14          //��ʼ�ź�
+  15          void tm1640_start(void)
+  16          {
+  17   1           SCLK(0);delay();
+  18   1           DIN(1);delay();
+  19   1           SCLK(1);delay();
+  20   1           DIN(0);delay();
+  21   1      }
+  22          
+  23          //�����ź�
+  24          void tm1640_end(void)
+  25          {
+  26   1           SCLK(0);delay();
+  27   1           DIN(0);delay();
+  28   1           SCLK(1);delay();
+  29   1           DIN(1);delay();
+  30   1      }
+  31          
+  32          
+  33          void tm1640_send_char(unsigned char buff)
+  34          {
+  35   1           unsigned char i;
+  36   1           
+  37   1           for(i=0;i<8;i++)
+  38   1           {
+  39   2                SCLK(0);delay();
+  40   2                DIN(0x01&(buff>>i));delay();
+  41   2                SCLK(1);delay();
+  42   2           }
+  43   1      }
+  44          
+  45          void tm1640_send_command(unsigned char buff)
+  46          {
+  47   1           tm1640_start();
+  48   1           tm1640_send_char(buff);
+  49   1           tm1640_end();
+  50   1      }
+  51          
+  52          void tm1640_send_address(unsigned char buff)
+  53          {    
+  54   1           tm1640_send_char(buff);
+C51 COMPILER V9.54   TM1640                                                                08/31/2022 15:02:55 PAGE 2   
+
+  55   1      }
+  56          
+  57          
+  58          
+  59          void tm1640_show_data(unsigned char address,unsigned char buff)
+  60          {
+  61   1           tm1640_start();
+  62   1           tm1640_send_address(address);
+  63   1           tm1640_send_char(buff);
+  64   1           tm1640_end();
+  65   1      }
+  66          //����
+  67          void tm1640_show_cls(void)
+  68          {
+  69   1           unsigned char i;
+  70   1           tm1640_send_command(DATA_MODE1);
+  71   1           tm1640_start();
+  72   1           tm1640_send_address(0xc0);
+  73   1           for(i=0;i<16;i++)
+  74   1           {
+  75   2                tm1640_send_char(0x00);
+  76   2           }
+  77   1           tm1640_end();
+  78   1           tm1640_send_command(TM1640_OFF);
+  79   1      }
+  80          //��ȫ��
+  81          void tm1640_show_fully(void)
+  82          {
+  83   1           tm1640_show_num(8888);
+  84   1           tm1640_show_character(WASH1_CHARACTERC,WASH1_ON);
+  85   1           tm1640_show_character(WASH2_CHARACTERC,WASH1_ON);
+  86   1           tm1640_show_character(WASH3_CHARACTERC,WASH1_ON);
+  87   1           tm1640_show_character(WASH4_CHARACTERC,WASH1_ON);
+  88   1           tm1640_show_character(WASH5_CHARACTERC,WASH1_ON);
+  89   1           tm1640_show_icon(BLEACH_ICON|WATER_ICON|SALT_ICON);
+  90   1      }
+  91          
+  92          //�������ʾ
+  93          //���룺Ҫ��ʾ����λ����
+  94          void tm1640_show_num(unsigned int num)
+  95          {
+  96   1           if(num>9999)num=9999;
+  97   1           tm1640_send_command(DATA_MODE2);
+  98   1           tm1640_show_data(NUMBERR1_COM,Show_Num[num/1000]+0x80);
+  99   1           tm1640_show_data(NUMBERR2_COM,Show_Num[(num/100)%10]+0x80);
+ 100   1           tm1640_show_data(NUMBERR3_COM,Show_Num[(num/10)%10]);
+ 101   1           tm1640_show_data(NUMBERR4_COM,Show_Num[num%10]);
+ 102   1           tm1640_send_command(TM1640_ON);    
+ 103   1      }
+ 104          //�������ʾʱ��
+ 105          void tm1640_show_time(void)
+ 106          {
+ 107   1           Delay_Count.hour_cnt=Delay_Count.delay_sec/3600;
+ 108   1           Delay_Count.min_cnt=Delay_Count.delay_sec/60;
+ 109   1           Delay_Count.sec_cnt=Delay_Count.delay_sec%60;
+ 110   1      //     tm1640_show_num(Delay_Count.hour_cnt*100+Delay_Count.min_cnt);
+ 111   1           tm1640_show_num(Delay_Count.min_cnt*100+Delay_Count.sec_cnt);
+ 112   1           if(0 ==((Delay_Count.min_cnt*100+Delay_Count.sec_cnt)/1000))//����4λΪ0ʱ�������
+             -�����ʾ
+ 113   1           {
+ 114   2                tm1640_send_command(DATA_MODE2);
+ 115   2                tm1640_show_data(NUMBERR1_COM,0x80);
+C51 COMPILER V9.54   TM1640                                                                08/31/2022 15:02:55 PAGE 3   
+
+ 116   2                tm1640_send_command(TM1640_ON);
+ 117   2           }
+ 118   1           
+ 119   1      }
+ 120          
+ 121          //ϴͼ����ʾ
+ 122          //���룺Ҫ��ʾ��ͼ�꣬���ؿ���
+ 123          void tm1640_show_character(unsigned char num,unsigned char on_off)
+ 124          {
+ 125   1           tm1640_send_command(DATA_MODE2);
+ 126   1           tm1640_show_data(num,on_off);
+ 127   1           tm1640_send_command(TM1640_ON);  
+ 128   1      }
+ 129          
+ 130          //ָʾͼ����ʾ
+ 131          //���룺Ҫ��ʾ��ͼ��
+ 132          void tm1640_show_icon(unsigned char num)
+ 133          {
+ 134   1           tm1640_send_command(DATA_MODE2);
+ 135   1           
+ 136   1           tm1640_show_data(0xc9,num);
+ 137   1           
+ 138   1           tm1640_send_command(TM1640_ON);
+ 139   1      }
+ 140          
+ 141          //������ʾ���������
+ 142          void tm1640_test(void)
+ 143          {
+ 144   1           static unsigned char i=0;
+ 145   1           static unsigned int adresee=0xc0;
+ 146   1           tm1640_send_command(DATA_MODE2);
+ 147   1           if(adresee<0xd0)
+ 148   1           {
+ 149   2              if(i<8)
+ 150   2              {
+ 151   3                tm1640_show_data(adresee,0x01<<i);
+ 152   3                i++;
+ 153   3              }
+ 154   2              else
+ 155   2              {
+ 156   3                i=0;
+ 157   3                adresee++;
+ 158   3              }
+ 159   2           }
+ 160   1           else
+ 161   1           {
+ 162   2                adresee=0xc0;
+ 163   2           }
+ 164   1           tm1640_send_command(TM1640_ON);  
+ 165   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    583    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     18    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

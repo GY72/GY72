@@ -1,0 +1,265 @@
+C51 COMPILER V9.54   MCU                                                                   08/31/2022 16:34:17 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MCU
+OBJECT MODULE PLACED IN .\Objects\mcu.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\bsp\mcu.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.
+                    -\Listings\mcu.lst) TABS(5) OBJECT(.\Objects\mcu.obj)
+
+line level    source
+
+   1          
+   2          #include "..\include_s.h"
+   3          
+   4          
+   5          void clear_wdt(void)
+   6          {
+   7   1           u8 val = RSTSTAT;
+   8   1           RSTSTAT = bit00000001;                  //1024ms
+   9   1      }
+  10          
+  11          /***************************
+  12           * Company   Hiklife
+  13           * author       LGX
+  14           * date    2017-12-06
+  15           * param 
+  16           * return  
+  17           *     
+  18           */
+  19          void mcu_init(void)
+  20          {
+  21   1           clear_wdt();
+  22   1      
+  23   1           /*   IO set 
+  24   1            *  PxCR     0: input   1: output
+  25   1            */
+  26   1           P0    = bit00000001;          // P0_6设置为输入
+  27   1           P0CR  = bit10111111;                 
+  28   1           P0PCR = bit00000000;
+  29   1      
+  30   1           P1    = bit00000000;         //
+  31   1           P1CR  = bit00000000;       
+  32   1           P1PCR = bit11111111;   
+  33   1      
+  34   1           P2        = bit00000011;      //P2.1TXD   P2.0RXD
+  35   1           P2CR  = bit11111110;       
+  36   1           P2PCR = bit00000011;  
+  37   1      
+  38   1           P3    = bit00000000;          //// P3_4设置为输入
+  39   1           P3CR  = bit11101111;         //
+  40   1           P3PCR = bit00000000; 
+  41   1      
+  42   1           P4    = bit00001111;          //
+  43   1           P4CR  = bit11100111;         //
+  44   1           P4PCR = bit00001100;          // 
+  45   1      
+  46   1          SETBANK1;
+  47   1           P5    = bit00000000;          //
+  48   1           P5CR  = bit11111111;         //
+  49   1           P5PCR = bit00000000;         //
+  50   1          
+  51   1           
+  52   1           UART0CR = bit00000000;        //P4.2 txd     P4.3 rxd  SH79F9403 在bank0
+  53   1           UART1CR = bit00000000;   //
+  54   1           
+C51 COMPILER V9.54   MCU                                                                   08/31/2022 16:34:17 PAGE 2   
+
+  55   1           SETBANK0;
+  56   1           
+  57   1      
+  58   1           /***************************************************************/
+  59   1           // oscsclk 系统时钟  24Mhz
+  60   1           //CLKCON = bit00100000;            //12mHz
+  61   1           //SET_MCU_CLK_RC_12M;
+  62   1           /*  当代码选项OP_OSC为0011， 1010时， OSCXCLK为内建24MHzRC；
+  63   1                当代码选项OP_OSC为0110时，      OSCXCLK为从XTALX输入的晶体谐振器或陶瓷谐振器； */
+  64   1      //   SET_MCU_CLK_RC_24M;
+  65   1      
+  66   1           CLKCON = bit10001000;
+  67   1           delay_10us(100);
+  68   1           CLKCON |= bit10001100;
+  69   1      
+  70   1      
+  71   1           /*timer set*/
+  72   1           //标准51是12T的,就是说12个时钟周期(晶振周期,例如12M的,周期是1/12M,单位秒),机器
+             -做一个指令周期,刚好就是1/12M*12=1uS
+  73   1      /***************************************************************/
+  74   1           // TIM3   
+  75   1           SETBANK1;
+  76   1           T3CON |= bit00000010;         //选用32.768khz外部振荡器
+  77   1           
+  78   1           TL3 = LOBYTE(65536 - 16384);                      // 
+  79   1           TH3 = HIBYTE(65536 - 16384);                      // 0.5s
+  80   1           SETBANK0;
+  81   1           
+  82   1           ET3=1;
+  83   1           
+  84   1      /***************************************************************/
+  85   1           // TIM4   
+  86   1           SETBANK1;
+  87   1           
+  88   1           TL4 = LOBYTE(65535 - 12000);            // 
+  89   1           TH4 = HIBYTE(65535 - 12000);            // 500us
+  90   1           SETBANK0;
+  91   1           
+  92   1           IEN1|=bit00000100;
+  93   1      /***************************************************************/
+  94   1           // TIM5        
+  95   1           SETBANK1;
+  96   1           TL5 = LOBYTE(65535 - 2400);
+  97   1           TH5 = HIBYTE(65535 - 2400);                  // 100us
+  98   1           
+  99   1           SETBANK0;
+ 100   1           
+ 101   1           ET5=1;
+ 102   1      /***************************************************************/
+ 103   1           // PWM引脚复用
+ 104   1           SETBANK1;
+ 105   1           PWMCR   = bit00110101;   // pwm0: P35   // pwm1: P05  
+ 106   1           SETBANK0;
+ 107   1      /***************************************************************/
+ 108   1           // PWM0
+ 109   1           
+ 110   1           PWM0PL = LOBYTE(158);                        
+ 111   1           PWM0PH = HIBYTE(158);
+ 112   1           PWM0DL = (LOBYTE(158/2));                         
+ 113   1           PWM0DH = (HIBYTE(158/2));
+ 114   1           PWM0CON = bit00010001;        //系统时钟/4
+ 115   1      /***************************************************************/
+C51 COMPILER V9.54   MCU                                                                   08/31/2022 16:34:17 PAGE 3   
+
+ 116   1           // PWM1
+ 117   1           SETBANK1;
+ 118   1           PWM1PL = LOBYTE(158);                        
+ 119   1           PWM1PH = HIBYTE(158);
+ 120   1           PWM1DL = (LOBYTE(158/2));                         
+ 121   1           PWM1DH = (HIBYTE(158/2));
+ 122   1           PWM1CON = bit00010001;
+ 123   1           SETBANK0;
+ 124   1           /***************************************************************/
+ 125   1           // ============ uart0 ============
+ 126   1           /* 这货自带波特率发生器
+ 127   1            baudrate = fsys/[16*(32768-SBRT1) + SFINE1]
+ 128   1      
+ 129   1            FACTOR = FSYS/16/baudrate = 12000000/16/9600 = 78.125                     [2400] = 313
+ 130   1            baudrate = FSYS/(16*78.125 + SFINE1)   
+ 131   1            
+ 132   1            *** SBRT  = 32768 - 78.125                                                          
+ 133   1            *** SFINE = FSYS/baudrate - 16*78.125 = 12000000/9600 - 16*78.125 = 2     [2400] = 5000 - 16*313 = 8
+ 134   1            */
+ 135   1      #ifdef      UART0_OPEN
+                    SCON  = bit01010000;                                       // 允许接收，方式1， 8位异步方式，可变波特率
+                    SBRTH = (32768 - BAUD_FACTOR) / 256;
+                    SBRTL = (32768 - BAUD_FACTOR) % 256;
+                    SFINE = SYSCLK / BAUD_RATE - 16 * BAUD_FACTOR;
+                    SBRTH |= bit7;                                                  // EUART0波特率发生器使能控制位
+                   
+                    ES0 = 1;                                                   // 允许uart0中断
+              #endif
+ 144   1           // ============ uart1 ============
+ 145   1           /*   */
+ 146   1      #ifdef      UART1_OPEN
+                   
+                    SETBANK1;
+               
+                    SCON1  = bit01010000;                                      // 允许接收，方式1， 8位异步方式，可变波特率
+                    SBRTH1 = (32768 - BAUD_FACTOR) / 256;
+                    SBRTL1 = (32768 - BAUD_FACTOR) % 256;
+                    SFINE1 = SYSCLK / BAUD_RATE - 16 * BAUD_FACTOR;
+                    SBRTH1 |= bit7;                                            // EUART1波特率发生器使能控制位
+               
+                    SETBANK0; 
+               
+                    IEN2 |= bit00000001;                                       // 允许uart1中断
+              #endif      
+ 160   1      // ============ uart2============
+ 161   1           /*   */
+ 162   1      #ifdef      UART2_OPEN
+ 163   1            SETBANK1;
+ 164   1       
+ 165   1            SCON2  = bit01010000;                                      // 允许接收，方式1， 8位异步方式，可变波特率
+ 166   1            SBRTH2 = (32768 - BAUD_FACTOR) / 256;
+ 167   1            SBRTL2 = (32768 - BAUD_FACTOR) % 256;
+ 168   1            SFINE2 = SYSCLK / BAUD_RATE - 16 * BAUD_FACTOR;
+ 169   1            SBRTH2 |= bit7;                                            // EUART2波特率发生器使能控制位
+ 170   1       
+ 171   1            SETBANK0; 
+ 172   1       
+ 173   1            IEN2 |= bit00000010;                                       // 允许uart2中断
+ 174   1      #endif
+ 175   1           /***************************************************************/
+ 176   1           //ext ints
+ 177   1           // IEN1   |= bit00001000;               // 使能外部中断4 
+C51 COMPILER V9.54   MCU                                                                   08/31/2022 16:34:17 PAGE 4   
+
+ 178   1           // IENC   = bit10000000;           // int47
+ 179   1           // EXF0        = bit11000000;           // 外部中断4 触发方式 双沿触发
+ 180   1           // EXCON    = bit00110000;              // 4次采样
+ 181   1      
+ 182   1           //adc_init();
+ 183   1      }
+ 184          
+ 185          void start_interrupts(void)
+ 186          {
+ 187   1           /*    
+ 188   1            IPL1 = bit00000010;
+ 189   1            IPH1 = bit00000010; 
+ 190   1      
+ 191   1            IPL0 = bit00100000;
+ 192   1            IPH0 = bit00100000; */
+ 193   1      
+ 194   1           /***************************************************************/
+ 195   1           //开中断，启动定时器
+ 196   1           EA = 1;
+ 197   1           SETBANK1;
+ 198   1           TR3 = 1;
+ 199   1           TR4 = 1;
+ 200   1           TR5 = 1;
+ 201   1           PWM1CON|=0x80;
+ 202   1           SETBANK0;
+ 203   1           PWM0CON|=0x80;
+ 204   1      
+ 205   1      }
+ 206          
+ 207          
+ 208          
+ 209          
+ 210          
+ 211          
+ 212          
+ 213          
+ 214          
+ 215          
+ 216          
+ 217          
+ 218          
+ 219          
+ 220          
+ 221          
+ 222          
+ 223          
+ 224          
+ 225          
+ 226          
+ 227          
+ 228          
+ 229          
+ 230          
+ 231          
+ 232          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    216    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       1
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.54   MCU                                                                   08/31/2022 16:34:17 PAGE 5   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

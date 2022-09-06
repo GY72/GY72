@@ -1,0 +1,534 @@
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE SYSTEM
+OBJECT MODULE PLACED IN .\Objects\system.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\system.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\
+                    -Listings\system.lst) TABS(5) OBJECT(.\Objects\system.obj)
+
+line level    source
+
+   1          #include "include_s.h"
+   2          
+   3          u8 system_state;
+   4          KEY_FLAG_T Key_Flag_Sys;
+   5          ROBAM_T Robam_info;
+   6          DEVICE_IF device_info;
+   7          STATUS_RT status_info;
+   8          u8 pon_2s=200;
+   9          u16 pon_3s=300;
+  10          u8 robam_state;   //烟机开关状态       
+  11          u8 robam_gear;    //烟机档位
+  12          u8 robam_gear_old;
+  13          u16 robam_delay;  //烟机延时时间
+  14          u32 add_50hour_up;   //烟机运行总时间
+  15          u8 buzz_mode;
+  16          u8 pushrod_state;//推杆状态
+  17          u8 hour_twinkle;
+  18          u8 minute_twinkle;
+  19          u16 clock_eeprom;
+  20          //关机状态
+  21          static void power_off_task_function(void)
+  22          {
+  23   1           static u8 execute_one=1;
+  24   1           u8 hv = hg.hand_value;
+  25   1           u8 kv = kb.key_value;
+  26   1           //关机一次执行一次
+  27   1           if(execute_one)
+  28   1           {
+  29   2                clear_all_output();
+  30   2                execute_one=0;
+  31   2           }
+  32   1           //按键短按抬起和手势判断
+  33   1            if (kb.key_state == skey_short_up || hg.hand_state==shand_new)
+  34   1           {
+  35   2                kb.key_state = skey_none; 
+  36   2                hg.hand_state = shand_none;
+  37   2                
+  38   2                //开机
+  39   2                if( (key_power==kv) ||( hand_right==hv && (3!=Key_Flag_Sys.key_power_flag && !Key_Flag_Sys.key_c
+             -lock_flag)))
+  40   2                {
+  41   3                      pon_2s=200;
+  42   3                      execute_one=1;
+  43   3                      buzz_mode=BUZZ_POWER_ON;
+  44   3                      system_state=TASK_SETTING;        //设置状态
+  45   3                }
+  46   2                //照明灯开
+  47   2                else if(key_light == kv && 0==Key_Flag_Sys.key_light_flag)
+  48   2                {
+  49   3                     key_led_light=true;
+  50   3                     Key_Flag_Sys.key_light_flag=1;
+  51   3                     buzz_mode=BUZZ_CLICK;
+  52   3                }
+  53   2                //照明灯关
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 2   
+
+  54   2                else if(key_light==kv && 1==Key_Flag_Sys.key_light_flag)
+  55   2                {
+  56   3                     key_led_light=false;
+  57   3                     Key_Flag_Sys.key_light_flag=0;
+  58   3                     buzz_mode=BUZZ_CLICK;
+  59   3                }
+  60   2                //电源键长按3S后的状态
+  61   2                else if(3==Key_Flag_Sys.key_power_flag && key_power==kv)
+  62   2                {
+  63   3                     Key_Flag_Sys.key_power_flag=0;
+  64   3                     Key_Flag_Sys.key_down_flag=0;
+  65   3                     Key_Flag_Sys.key_up_flag=0;
+  66   3                     buzz_mode=BUZZ_CLICK;
+  67   3                }
+  68   2                //电源键长按3S后，关闭手势
+  69   2                else if(3==Key_Flag_Sys.key_power_flag && key_down==kv)
+  70   2                {
+  71   3                     hand_task.mode=0;
+  72   3                     Key_Flag_Sys.key_down_flag=1;
+  73   3                     pon_3s=300;
+  74   3                     buzz_mode=BUZZ_CLICK;
+  75   3                }
+  76   2                 //电源键长按3S后，开启手势
+  77   2                else if(3==Key_Flag_Sys.key_power_flag && key_up==kv)
+  78   2                {
+  79   3                     Key_Flag_Sys.key_up_flag=1;
+  80   3                     hand_task.mode=1;
+  81   3                     pon_3s=300;
+  82   3                     buzz_mode=BUZZ_CLICK;
+  83   3                }
+  84   2                //时钟键长按3S后的状态
+  85   2                else if(key_clock==kv && 1==Key_Flag_Sys.key_clock_flag)
+  86   2                {
+  87   3                     Key_Flag_Sys.key_clock_flag=2;
+  88   3                     buzz_mode=BUZZ_CLICK;
+  89   3                     hour_twinkle=false;
+  90   3                }
+  91   2                 //时钟键长按3S后，再按一次的状态
+  92   2                else if(key_clock==kv && 2==Key_Flag_Sys.key_clock_flag)
+  93   2                {
+  94   3                     Key_Flag_Sys.key_clock_flag=0;
+  95   3                     key_led_clock=false;
+  96   3                     hour_twinkle=false;
+  97   3                     minute_twinkle=false;
+  98   3                     clock.second=0;
+  99   3                     clock_eeprom=clock.hour*100+clock.minute;
+ 100   3                     save_clock_onoff(clock_eeprom);
+*** WARNING C182 IN LINE 100 OF ..\src\system.c: pointer to different objects
+ 101   3                     buzz_mode=BUZZ_CLICK;
+ 102   3                }
+ 103   2                //时钟键长按3S后，加键改变时钟的小时数
+ 104   2                else if(key_up==kv && 1==Key_Flag_Sys.key_clock_flag)
+ 105   2                {
+ 106   3                     if (++clock.hour >= 24)
+ 107   3                     {
+ 108   4                          clock.hour = 0;
+ 109   4                     }
+ 110   3                     buzz_mode=BUZZ_CLICK;
+ 111   3                }
+ 112   2                //时钟键长按3S后，减键改变时钟的小时数
+ 113   2                else if(key_down==kv && 1==Key_Flag_Sys.key_clock_flag)
+ 114   2                {
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 3   
+
+ 115   3                    if (clock.hour-- <= 0)
+ 116   3                     {
+ 117   4                          clock.hour = 23;
+ 118   4                     }
+ 119   3                     buzz_mode=BUZZ_CLICK;
+ 120   3                }
+ 121   2                  //时钟键长按3S后，再按一次，加键改变时钟的分钟数
+ 122   2                else if(key_up==kv && 2==Key_Flag_Sys.key_clock_flag)
+ 123   2                {
+ 124   3                     if (++clock.minute >= 60)
+ 125   3                     {
+ 126   4                          clock.minute = 0;
+ 127   4                     } 
+ 128   3                      buzz_mode=BUZZ_CLICK;
+ 129   3                }
+ 130   2                 //时钟键长按3S后，再按一次，减键改变时钟的分钟数
+ 131   2                else if(key_down==kv && 2==Key_Flag_Sys.key_clock_flag)
+ 132   2                {
+ 133   3                    if (clock.minute-- <= 0)
+ 134   3                     {
+ 135   4                          clock.minute = 59;
+ 136   4                     }
+ 137   3                     buzz_mode=BUZZ_CLICK;
+ 138   3                }
+ 139   2           }
+ 140   1          //按键长按3s 
+ 141   1           if(kb.key_state == skey_3s_dn)
+ 142   1           {
+ 143   2                kb.key_state = skey_none; 
+ 144   2                buzz_mode=BUZZ_CLICK;
+ 145   2                //电源键长按3s，且烟机关闭，进入手势设定模式
+ 146   2                if(key_power==kv && 0==robam_state)
+ 147   2                {
+ 148   3                     pon_3s=300;
+ 149   3                     Key_Flag_Sys.key_power_flag=3;//手势设定状态
+ 150   3                     key_led_power=true;
+ 151   3                }
+ 152   2                 //时钟键长按3s，进入时钟调节设置，
+ 153   2                else if(key_clock==kv && 0==Key_Flag_Sys.key_clock_flag)
+ 154   2                {
+ 155   3                     Key_Flag_Sys.key_clock_flag=1;
+ 156   3                     key_led_clock=true;
+ 157   3                }
+ 158   2                //关闭报警
+ 159   2                else if(key_clean==kv && 180000==add_50hour_up)
+ 160   2                {
+ 161   3                     add_50hour_up=0;
+ 162   3                     key_led_clean=false;
+ 163   3                }
+ 164   2           }
+ 165   1           //手势设定模式无操作3s倒计时
+ 166   1           if(3==Key_Flag_Sys.key_power_flag && false==kv)
+ 167   1           {
+ 168   2                u16_dn(&pon_3s);
+ 169   2           }
+ 170   1            //判断是否关闭手势设定模式
+ 171   1           if(3==Key_Flag_Sys.key_power_flag && 0==pon_3s)
+ 172   1           {
+ 173   2                Key_Flag_Sys.key_power_flag=0;
+ 174   2                Key_Flag_Sys.key_down_flag=0;
+ 175   2                Key_Flag_Sys.key_up_flag=0;
+ 176   2                key_led_up=false;
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 4   
+
+ 177   2                key_led_down=false;
+ 178   2                key_led_power=false;
+ 179   2           }
+ 180   1          
+ 181   1      }
+ 182          //设置状态
+ 183          static void setting_task_function(void)
+ 184          {
+ 185   1           u8 hv = hg.hand_value;
+ 186   1           u8 kv = kb.key_value;
+ 187   1           //第一次开机状态   
+ 188   1           if(0==Key_Flag_Sys.key_power_flag)
+ 189   1           {
+ 190   2                key_led_power=true;
+ 191   2                key_led_down=true;
+ 192   2                key_led_up=true;
+ 193   2                robam_state=true;        //烟机开启
+ 194   2      //          robam_gear=5;            //烟机档位,有记忆档位
+ 195   2                tm16xx_clser();
+ 196   2                Down_Tmer.start=0;
+ 197   2                Down_Tmer.show=0;
+ 198   2                Key_Flag_Sys.key_power_flag=1;
+ 199   2                
+ 200   2           }  
+ 201   1      //按键处理    
+ 202   1           if (kb.key_state == skey_short_up||hg.hand_state == shand_new)
+ 203   1           {
+ 204   2                kb.key_state = skey_none; 
+ 205   2                hg.hand_state = shand_none;
+ 206   2      /*********************************电源键********************************************/                  
+             -             
+ 207   2                //烟机延时
+ 208   2                if(key_power==kv && 1==Key_Flag_Sys.key_power_flag)
+ 209   2                {
+ 210   3                     robam_delay=180;
+ 211   3                     Down_Tmer.start=1;
+ 212   3                     Down_Tmer.show=1;
+ 213   3                     Down_Tmer.delay_sec=robam_delay;//延时3分钟
+ 214   3                     Key_Flag_Sys.key_power_flag=2;//延时状态
+ 215   3                     buzz_mode=BUZZ_CLICK;
+ 216   3                }
+ 217   2                //关机
+ 218   2                else if((key_power==kv || hand_left == hv)&& 2==Key_Flag_Sys.key_power_flag)
+ 219   2                {
+ 220   3                      system_state=TASK_POWEROFF;        
+ 221   3                      robam_state=false;        //烟机关闭
+ 222   3                      robam_gear=0;
+ 223   3                      Key_Flag_Sys.key_power_flag=0;
+ 224   3                      Down_Tmer.show=1;
+ 225   3                      Down_Tmer.start=0;
+ 226   3                      buzz_mode=BUZZ_POWER_OFF;
+ 227   3                }
+ 228   2                //延时关闭启动时，向右调为6挡
+ 229   2                else if( hand_right == hv && 2==Key_Flag_Sys.key_power_flag)
+ 230   2                {
+ 231   3                      robam_gear=6;
+ 232   3                      Down_Tmer.start=0;
+ 233   3                      Down_Tmer.show=0;
+ 234   3                }
+ 235   2                
+ 236   2      /****************************延时关闭未启动时，设置档位**************************************
+             -*/
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 5   
+
+ 237   2      
+ 238   2      /*********************************减档********************************************/ 
+ 239   2                else if((key_down == kv || hand_left == hv) && 1==Key_Flag_Sys.key_power_flag)
+ 240   2                {
+ 241   3                      robam_gear--;
+ 242   3                      lim_min_8(&robam_gear,0);
+ 243   3                      Down_Tmer.start=0;
+ 244   3                      Down_Tmer.show=0;
+ 245   3                      buzz_mode=BUZZ_CLICK;
+ 246   3                      save_level_onoff(robam_gear);
+ 247   3                }
+ 248   2      /*********************************加档********************************************/ 
+ 249   2                else if((key_up == kv ||  hand_right == hv) && 1==Key_Flag_Sys.key_power_flag)
+ 250   2                {
+ 251   3                     robam_gear++;//风机档位
+ 252   3                     lim_max_8(&robam_gear,8);
+ 253   3                     Down_Tmer.start=0;
+ 254   3                     Down_Tmer.show=0;
+ 255   3                     buzz_mode=BUZZ_CLICK;
+ 256   3                     save_level_onoff(robam_gear);
+ 257   3                }
+ 258   2      /****************************延时关闭启动时，设置延时时间***********************************
+             -****/ 
+ 259   2      
+ 260   2      /*********************************减档********************************************/ 
+ 261   2                else if((key_down == kv || hand_left == hv) && 2==Key_Flag_Sys.key_power_flag)
+ 262   2                {
+ 263   3                      robam_delay-=60;
+ 264   3                      Down_Tmer.start=1;
+ 265   3                      Down_Tmer.show=1;
+ 266   3                      Down_Tmer.delay_sec=robam_delay;
+ 267   3                }
+ 268   2      /*********************************加档********************************************/ 
+ 269   2                else if((key_up == kv ||  hand_right == hv) && 2==Key_Flag_Sys.key_power_flag)
+ 270   2                {
+ 271   3                     robam_delay+=60;
+ 272   3                     Down_Tmer.start=1;
+ 273   3                     Down_Tmer.show=1;
+ 274   3                     Down_Tmer.delay_sec=robam_delay;
+ 275   3                }
+ 276   2      /*********************************爆炒键********************************************/          
+ 277   2                else if(key_fried == kv && 0==Key_Flag_Sys.key_fried_flag )
+ 278   2                {
+ 279   3                     key_led_fried=true;
+ 280   3                     Down_Tmer.delay_sec=180;//延时3分钟
+ 281   3                     Down_Tmer.start=1;
+ 282   3                     Down_Tmer.show=1;
+ 283   3                     robam_gear_old=robam_gear;
+ 284   3                     robam_gear=9;//爆炒档
+ 285   3                     Key_Flag_Sys.key_fried_flag=1;
+ 286   3                     buzz_mode=BUZZ_CLICK;
+ 287   3                }
+ 288   2                else if(key_fried == kv && 1== Key_Flag_Sys.key_fried_flag)
+ 289   2                {
+ 290   3                     Key_Flag_Sys.key_fried_flag=0;
+ 291   3                     Down_Tmer.start=0;
+ 292   3                     Down_Tmer.show=0;
+ 293   3                     robam_gear=robam_gear_old;//风机档位
+ 294   3                     key_led_fried=false;
+ 295   3                     buzz_mode=BUZZ_CLICK;
+ 296   3                }
+ 297   2      /*********************************照明键********************************************/
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 6   
+
+ 298   2                else if(key_light == kv && 0==Key_Flag_Sys.key_light_flag)
+ 299   2                {
+ 300   3                     key_led_light=true;
+ 301   3                     Key_Flag_Sys.key_light_flag=1;
+ 302   3                     buzz_mode=BUZZ_CLICK;
+ 303   3                }
+ 304   2                else if(key_light==kv && 1==Key_Flag_Sys.key_light_flag)
+ 305   2                {
+ 306   3                     key_led_light=false;
+ 307   3                     Key_Flag_Sys.key_light_flag=0;
+ 308   3                     buzz_mode=BUZZ_CLICK;
+ 309   3                } 
+ 310   2                 
+ 311   2            }
+ 312   1            //延时结束处理
+ 313   1           if (1==Down_Tmer.over )
+ 314   1           {
+ 315   2                     Down_Tmer.over=0;
+ 316   2                     buzz_mode=BUZZ_FINISH;
+ 317   2                     if(1== Key_Flag_Sys.key_fried_flag)
+ 318   2                     {
+ 319   3                          Key_Flag_Sys.key_fried_flag=0;
+ 320   3                          Down_Tmer.start=0;
+ 321   3                          Down_Tmer.show=0;
+ 322   3                          robam_gear=robam_gear_old;//风机档位
+ 323   3                          key_led_fried=false;
+ 324   3                     }
+ 325   2                     else if(2==Key_Flag_Sys.key_power_flag)
+ 326   2                     {
+ 327   3                          system_state=TASK_POWEROFF;        //关机
+ 328   3                           Key_Flag_Sys.key_power_flag=0;
+ 329   3                           Down_Tmer.show=1;
+ 330   3                           Down_Tmer.start=0;
+ 331   3                     }
+ 332   2           }
+ 333   1      /*********************************清洗键********************************************/      
+ 334   1           if (kb.key_state == skey_3s_dn)
+ 335   1           {
+ 336   2                kb.key_state = skey_none; 
+ 337   2                buzz_mode=BUZZ_CLICK;
+ 338   2                if(key_clean==kv && 180000==add_50hour_up)
+ 339   2                {
+ 340   3                     add_50hour_up=0;
+ 341   3                     key_led_clean=false;
+ 342   3                }
+ 343   2           }
+ 344   1           switch(kv)
+ 345   1           {         
+ 346   2                case  9:robam_gear=1;break;
+ 347   2                case 10:robam_gear=2;break;
+ 348   2                case 11:robam_gear=3;break;
+ 349   2                case 12:robam_gear=4;break;
+ 350   2                case 13:robam_gear=5;break;
+ 351   2                case 14:robam_gear=6;break;
+ 352   2                case 15:robam_gear=7;break;
+ 353   2                case 16:robam_gear=8;break;    
+ 354   2           }
+ 355   1           if(kv>=9&&kv<=16)
+ 356   1           {
+ 357   2                save_level_onoff(robam_gear);//记忆
+ 358   2           }
+ 359   1       //显示光圈
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 7   
+
+ 360   1            if( 0==Down_Tmer.show && 0==Down_Tmer.start)
+ 361   1            {
+ 362   2                tm16xx_show_3_num(robam_gear);
+ 363   2            }
+ 364   1           tm16xx_show_stall(robam_gear);  
+ 365   1      }
+ 366          
+ 367          static void run_task_function(void)
+ 368          {
+ 369   1      //     system_state=TASK_POWEROFF;
+ 370   1      }
+ 371          static void error_task_function(void)
+ 372          {
+ 373   1      //     system_state=TASK_POWEROFF;
+ 374   1      }
+ 375          static void toggle_task(void)
+ 376          {
+ 377   1           if(system_500ms_f)
+ 378   1           {
+ 379   2                if(1==Down_Tmer.show)
+ 380   2                {
+ 381   3                     tm16xx_show_colon();//冒号闪烁
+ 382   3                }
+ 383   2                if(180000==add_50hour_up)//清洗指示灯闪烁
+ 384   2                {
+ 385   3                     if(key_led_clean) key_led_clean=false;
+ 386   3                     else key_led_clean=true;
+ 387   3                }
+ 388   2                if(1==Key_Flag_Sys.key_up_flag)//加档指示灯闪烁
+ 389   2                {
+ 390   3                     if(key_led_up) key_led_up=false;
+ 391   3                     else key_led_up=true;
+ 392   3                }
+ 393   2                if(1==Key_Flag_Sys.key_down_flag)//键档指示灯闪烁
+ 394   2                {
+ 395   3                     if(key_led_down) key_led_down=false;
+ 396   3                     else key_led_down=true;
+ 397   3                }
+ 398   2                if(1==Key_Flag_Sys.key_clock_flag)//时钟小时闪烁
+ 399   2                {
+ 400   3                       if(hour_twinkle) hour_twinkle=false;
+ 401   3                       else hour_twinkle=true;
+ 402   3                }
+ 403   2                if(2==Key_Flag_Sys.key_clock_flag)//时钟分钟闪烁
+ 404   2                {
+ 405   3                       if(minute_twinkle) minute_twinkle=false;
+ 406   3                       else minute_twinkle=true;
+ 407   3                }
+ 408   2                if(2==Key_Flag_Sys.key_power_flag)//电源键闪烁
+ 409   2                {
+ 410   3                     if(key_led_power) key_led_power=false;
+ 411   3                     else key_led_power=true;
+ 412   3                }
+ 413   2           }
+ 414   1      }
+ 415          /******************************************************/
+ 416          /******************************************************/
+ 417          /******************** 系统任务调度 *********************/
+ 418          /******************************************************/
+ 419          /******************************************************/
+ 420          void system_tasks(void)
+ 421          {
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 8   
+
+ 422   1          toggle_task();//翻转状态
+ 423   1          switch(system_state)
+ 424   1          {
+ 425   2          case TASK_POWEROFF:       //关机状态
+ 426   2              power_off_task_function();
+ 427   2              break;
+ 428   2          
+ 429   2          case TASK_SETTING:          //设置状态 
+ 430   2              
+ 431   2              setting_task_function();
+ 432   2              break;
+ 433   2      
+ 434   2          case TASK_WORK:                //工作状态
+ 435   2              run_task_function();
+ 436   2              break;
+ 437   2          
+ 438   2          case TASK_ERROR:               //错误状态
+ 439   2              error_task_function();
+ 440   2              break;
+ 441   2      
+ 442   2          default:
+ 443   2              system_state = TASK_POWEROFF;
+ 444   2          }
+ 445   1      
+ 446   1      
+ 447   1      }
+ 448          
+ 449          /******************************************************/
+ 450          /******************************************************/
+ 451          /***********************系统初始化**********************/
+ 452          /******************************************************/
+ 453          /******************************************************/
+ 454          void reset_para_value(void)
+ 455          {
+ 456   1           hand_task.mode=1;                 //手势开关
+ 457   1           Down_Tmer.start=0;         //倒计时开关
+ 458   1           Down_Tmer.show=1;       //显示开关
+ 459   1           hour_twinkle=false;          //时钟小时闪烁
+ 460   1           minute_twinkle=false;       //时钟分钟闪烁
+ 461   1           Key_Flag_Sys.key_power_flag=0;
+ 462   1           Key_Flag_Sys.key_linkage_flag=0;
+ 463   1           Key_Flag_Sys.key_clock_flag=0;
+ 464   1           Key_Flag_Sys.key_down_flag=0;
+ 465   1           Key_Flag_Sys.key_up_flag=0;
+ 466   1           Key_Flag_Sys.key_fried_flag=0;
+ 467   1           Key_Flag_Sys.key_clean_flag=0;
+ 468   1           Key_Flag_Sys.key_light_flag=0;
+ 469   1      }
+ 470          
+ 471          void system_init(void)
+ 472          {
+ 473   1          clear_all_output();
+ 474   1          system_state=TASK_POWEROFF;
+ 475   1          panel_comm.cmd =FZKZ_FLAG;          //发送负载控制数据包
+ 476   1          buzz_mode=BUZZ_MACHINE_ON;      //上电
+ 477   1          protocol_init();
+ 478   1          touchkeyinit();
+ 479   1          clock_init(&clock);
+ 480   1          key_board_init(&kb);   
+ 481   1          Get_TK_Baseline(); 
+ 482   1          hand_gesture_init(&hg);
+ 483   1          reset_para_value();
+C51 COMPILER V9.54   SYSTEM                                                                08/31/2022 16:42:45 PAGE 9   
+
+ 484   1      }
+ 485          
+ 486          
+ 487          
+ 488          
+ 489          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1819    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     53       4
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

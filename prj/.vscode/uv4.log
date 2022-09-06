@@ -1,0 +1,13 @@
+Load "c:\\Users\\dell\\Desktop\\Keil5\\SH79F328\\GY_MB_MN_K2205 1.0\\prj\\Objects\\GY_MB_MN_K2205" 
+Flash Erase Done.
+ISP size=0, E2PROM size=4096;
+Main Size=28672Bytes; E2PROM Size=4096Bytes;
+The Code CheckSum is D586H
+Code Write Done: 22714 bytes programmed.
+Code Option Write Done.
+Code Verify Done: 22714 bytes verified.
+Code Option Verify Done
+Code Security Write Done.
+Code Security Verify Done
+elaspe time 2937 ms
+Flash Load finished at 15:07:37

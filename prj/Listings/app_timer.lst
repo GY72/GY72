@@ -1,0 +1,248 @@
+C51 COMPILER V9.54   APP_TIMER                                                             08/31/2022 16:44:50 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE APP_TIMER
+OBJECT MODULE PLACED IN .\Objects\app_timer.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\lib\app_timer.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND P
+                    -RINT(.\Listings\app_timer.lst) TABS(5) OBJECT(.\Objects\app_timer.obj)
+
+line level    source
+
+   1          /****************************************************************************
+   2           * app_timer.c
+   3           *
+   4           *    Copyright (C) Hiklife. All rights reserved.
+   5           *   Author: Lgx <lgx@hiklife.com> 2019-03
+   6           * 
+   7           *  系统时钟相关函数
+   8           *
+   9           ****************************************************************************/
+  10          
+  11          
+  12          #include "..\include_s.h"
+  13          
+  14          /****************************************************************************
+  15           * 全局变量
+  16           ****************************************************************************/
+  17          iram CLOCK_t clock;
+  18          iram COUNT_DOWN_CLOCK Down_Tmer;
+  19          iram SYSTEM_TMR_t system_tmrs;
+  20          iram CYCLE_TMR_t cycle_tmr;
+  21          
+  22          //iram bool base_5ms_f;
+  23          bool base_10ms_f;
+  24          bool half_sec_f;
+  25          bool sec_flash_f;
+  26          
+  27          /* u8 rtc_err_ct;
+  28          bool rtc_err_f; */
+  29          
+  30          bool rtc_sec_f;
+  31          /****************************************************************************
+  32           * 内部变量
+  33           ****************************************************************************/
+  34          
+  35          
+  36          /****************************************
+  37           * 函数名：     delay_10us 
+  38           * 说明：   不精确短延时
+  39           * 输入：   u16 
+  40           * 输出：   无
+  41           ****************************************/
+  42          void delay_10us(u16 i)
+  43          {
+  44   1           while(i--);
+  45   1      }
+  46          
+  47          void robam_task_ctrl(void)                                                                          
+  48          {    
+  49   1           static u16 add_15min_up = 0;
+  50   1           if(robam_state)
+  51   1           {
+  52   2                if(system_sec_f)
+  53   2                {
+  54   3                     add_50hour_up++;
+C51 COMPILER V9.54   APP_TIMER                                                             08/31/2022 16:44:50 PAGE 2   
+
+  55   3                     add_15min_up++;
+  56   3                }
+  57   2                if(add_50hour_up >= 180000)        //50小时
+  58   2                {
+  59   3                     if(system_500ms_f)
+  60   3                     add_50hour_up = 180000;
+  61   3                }
+  62   2                
+  63   2                if(add_15min_up>=900)
+  64   2                {
+  65   3                     add_15min_up = 0;
+  66   3                     save_para_block();
+  67   3                }
+  68   2           }         
+  69   1      }
+  70          /****************************************
+  71           * 函数名：     Down_Clock 
+  72           * 说明：   倒计时时钟函数
+  73           * 输入：   无
+  74           * 输出：   无
+  75           ****************************************/
+  76           void Down_Clock(void)
+  77           {
+  78   1               if(Down_Tmer.start)
+  79   1               {
+  80   2                      if (system_sec_f)
+  81   2                     {
+  82   3                          Down_Tmer.hour_cnt=Down_Tmer.delay_sec/3600;
+  83   3                          Down_Tmer.min_cnt=Down_Tmer.delay_sec/60;
+  84   3                          Down_Tmer.sec_cnt=Down_Tmer.delay_sec%60;
+  85   3                          num_value=Down_Tmer.min_cnt*100+Down_Tmer.sec_cnt;
+  86   3                          if(0==Down_Tmer.delay_sec)
+  87   3                          {
+  88   4                                Down_Tmer.start=0;
+  89   4                                Down_Tmer.show=0;
+  90   4                                Down_Tmer.over=1;
+  91   4                          }
+  92   3                          else
+  93   3                          {
+  94   4                               Down_Tmer.over=0;
+  95   4                               Down_Tmer.delay_sec--;
+  96   4                          } 
+  97   3                    }
+  98   2               }
+  99   1                else
+ 100   1                {
+ 101   2                     num_value=clock.hour*100+clock.minute;
+ 102   2                }
+ 103   1                if(Down_Tmer.show)
+ 104   1                {  
+ 105   2                     tm16xx_show_num(num_value); 
+ 106   2                }
+ 107   1                
+ 108   1       }
+ 109           
+ 110          /****************************************
+ 111           * 函数名：     Clock 
+ 112           * 说明：   24H时钟函数
+ 113           * 输入：   CLOCK_t 指针
+ 114           * 输出：   无
+ 115           ****************************************/
+ 116          void Clock(CLOCK_t * clock)
+C51 COMPILER V9.54   APP_TIMER                                                             08/31/2022 16:44:50 PAGE 3   
+
+ 117          {    
+ 118   1           if (run_sec_f)
+ 119   1           {//1S
+ 120   2                run_sec_f=0;
+ 121   2                if (++clock->second >= 60)
+ 122   2                {
+ 123   3                     clock->second = 0;
+ 124   3                     clock_eeprom=clock->hour*100+clock->minute;
+ 125   3                     save_clock_onoff(clock_eeprom);
+*** WARNING C182 IN LINE 125 OF ..\src\lib\app_timer.c: pointer to different objects
+ 126   3                     if (++clock->minute >= 60)
+ 127   3                     {
+ 128   4                          clock->minute = 0;            //1分钟到
+ 129   4      
+ 130   4                          if (++clock->hour >= 24)
+ 131   4                          {
+ 132   5                               clock->hour = 0;
+ 133   5                          }
+ 134   4                     }
+ 135   3                }
+ 136   2           }
+ 137   1          
+ 138   1      }
+ 139          
+ 140          /****************************************
+ 141           * 函数名：     clock_init 
+ 142           * 说明：   24H时钟初始化函数
+ 143           * 输入：   CLOCK_t 指针
+ 144           * 输出：   无
+ 145           ****************************************/
+ 146          void clock_init(CLOCK_t * clock)
+ 147          {
+ 148   1           clock->hour   = clock_eeprom/100;
+ 149   1           clock->minute = clock_eeprom%100;
+ 150   1           clock->second = 0;
+ 151   1      }
+ 152          
+ 153          /****************************************
+ 154           * 函数名：     TimerNms_count 
+ 155           * 说明：   系统定时标志函数，心跳时钟10ms
+ 156           * 输入：   无
+ 157           * 输出：   无
+ 158           ****************************************/
+ 159          void TimerNms_count(void)
+ 160          {//10ms调用一次
+ 161   1           static u8 nms_ct = 0;
+ 162   1      
+ 163   1           if (++cycle_tmr.tmr >= cycle_tmr.width) cycle_tmr.tmr = 0;
+ 164   1      
+ 165   1           system_tmrs.timer_flags_byte = 0;
+ 166   1          
+ 167   1           if (++nms_ct >= 100)
+ 168   1                nms_ct = 0;
+ 169   1           
+ 170   1           if (nms_ct & 1)                                   
+ 171   1                system_20ms_f = true;
+ 172   1      
+ 173   1           if ((nms_ct % 10) == 0)  
+ 174   1                system_100ms_f = true;
+ 175   1      
+ 176   1           if ((nms_ct == 0) || (nms_ct == 50))    
+ 177   1           {
+C51 COMPILER V9.54   APP_TIMER                                                             08/31/2022 16:44:50 PAGE 4   
+
+ 178   2                system_500ms_f = true;
+ 179   2                half_sec_f ^= 1;
+ 180   2           }
+ 181   1      
+ 182   1           if (nms_ct == 0) 
+ 183   1           {
+ 184   2                system_sec_f = true; 
+ 185   2                sec_flash_f ^= 1;
+ 186   2           }
+ 187   1      
+ 188   1      //   system_sec_f = rtc_sec_f;
+ 189   1      //   rtc_sec_f = false;
+ 190   1      
+ 191   1           /* if (rtc_err_f == false)    
+ 192   1           {
+ 193   1                system_sec_f = rtc_sec_f;
+ 194   1      
+ 195   1                if (system_100ms_f)
+ 196   1                     u8_up(&rtc_err_ct);
+ 197   1      
+ 198   1                if (rtc_err_ct > 100)
+ 199   1                     rtc_err_f = true;
+ 200   1           } */
+ 201   1      
+ 202   1           //   TOGGLE_TEST_PIN;
+ 203   1      }
+ 204          
+ 205          
+ 206          
+ 207          
+ 208          
+ 209          
+ 210          
+ 211          
+ 212          
+ 213          
+ 214          
+ 215          
+ 216          
+ 217          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    634    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      3       6
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =     16    ----
+   BIT SIZE         =      4    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

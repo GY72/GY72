@@ -1,0 +1,42 @@
+{
+    "configurations": [
+        {
+            "name": "Target 1",
+            "includePath": [
+                "D:\\Keil5\\C51\\INC",
+                "c:\\Users\\dell\\Desktop\\Keil5\\SH79F328\\GY_MB_MN_K2205 1.0\\src\\bsp",
+                "c:\\Users\\dell\\Desktop\\Keil5\\SH79F328\\GY_MB_MN_K2205 1.0\\src",
+                "c:\\Users\\dell\\Desktop\\Keil5\\SH79F328\\GY_MB_MN_K2205 1.0\\src\\lib",
+                "c:\\Users\\dell\\Desktop\\Keil5\\SH79F328\\GY_MB_MN_K2205 1.0\\src\\sino_touchkey\\Lib",
+                "c:\\Users\\dell\\Desktop\\Keil5\\SH79F328\\GY_MB_MN_K2205 1.0\\src\\sino_touchkey\\Inc",
+                "c:\\Users\\dell\\Desktop\\Keil5\\SH79F328\\GY_MB_MN_K2205 1.0\\src\\sino_touchkey\\Lib_Src"
+            ],
+            "defines": [
+                "__C51__",
+                "__VSCODE_C51__",
+                "reentrant=",
+                "compact=",
+                "small=",
+                "large=",
+                "data=",
+                "idata=",
+                "pdata=",
+                "bdata=",
+                "xdata=",
+                "code=",
+                "bit=char",
+                "sbit=char",
+                "sfr=char",
+                "sfr16=int",
+                "sfr32=int",
+                "interrupt=",
+                "using=",
+                "_at_=",
+                "_priority_=",
+                "_task_="
+            ],
+            "intelliSenseMode": "${default}"
+        }
+    ],
+    "version": 4
+}

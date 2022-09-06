@@ -1,0 +1,274 @@
+C51 COMPILER V9.54   UART                                                                  08/31/2022 15:02:55 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE UART
+OBJECT MODULE PLACED IN .\Objects\uart.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\lib\uart.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(
+                    -.\Listings\uart.lst) TABS(5) OBJECT(.\Objects\uart.obj)
+
+line level    source
+
+   1          /****************************************************************************
+   2           * uart.c
+   3           *
+   4           *    Copyright (C) Hiklife. All rights reserved.
+   5           *   Author: Lgx <lgx@hiklife.com> 2019-03
+   6           * 
+   7           *  uart处理函数
+   8           *
+   9           ****************************************************************************/
+  10          #include "..\include_s.h"
+  11          
+  12          //回调的数据包处理函数
+  13          extern void process_packet(UART_t * c_uart);
+  14          
+  15          /* ！！！！！！！！！！！！！！！！！！！！！！！！*/
+  16          /* ！！！要用这些函数各UART中断优先级必须一样！！！*/
+  17          /* ！！！！！！！！！！！！！！！！！！！！！！！！*/
+  18          
+  19          /****************************************
+  20           * 函数名：     uart_send_byte 
+  21           * 说明：   uart发送，写入sbuf
+  22           *             非中断中掉用时需要确保发送中断不会发生，因为不可重入！
+  23           * 输入：   id: uart id, da: 发送的数据
+  24           * 输出：   --
+  25           ****************************************/
+  26          void uart_send_byte(u8 id, u8 da)
+  27          {
+  28   1           if (id == ID_UART0)
+  29   1                SBUF = da;
+  30   1           
+  31   1           if (id == ID_UART1)
+  32   1           {
+  33   2                _push_(INSCON);     
+  34   2                SETBANK1;
+  35   2      
+  36   2                SBUF1 = da;
+  37   2                
+  38   2                SETBANK0;
+  39   2                _pop_(INSCON);    
+  40   2           }
+  41   1           if (id == ID_UART2)
+  42   1           {
+  43   2                _push_(INSCON);     
+  44   2                
+  45   2                SETBANK1;
+  46   2      
+  47   2                SBUF2 = da;
+  48   2                
+  49   2                SETBANK0;
+  50   2                
+  51   2                _pop_(INSCON);    
+  52   2           }
+  53   1      }
+  54          /****************************************
+C51 COMPILER V9.54   UART                                                                  08/31/2022 15:02:55 PAGE 2   
+
+  55           * 函数名：     uart_recv_byte 
+  56           * 说明：   uart接收，读取sbuf
+  57           * 输入：   id: uart id
+  58           * 输出：   接收到的数据
+  59           ****************************************/
+  60          static u8 uart_recv_byte(u8 id)
+  61          {
+  62   1           volatile u8 da;
+  63   1      
+  64   1           if (id == ID_UART0)
+  65   1                da = SBUF;
+  66   1      
+  67   1           if (id == ID_UART1)
+  68   1           {
+  69   2                _push_(INSCON);
+  70   2                SETBANK1;
+  71   2      
+  72   2                da = SBUF1;
+  73   2                
+  74   2                SETBANK0;
+  75   2                _pop_(INSCON);
+  76   2           }
+  77   1           if (id == ID_UART2)
+  78   1           {
+  79   2                _push_(INSCON);
+  80   2                SETBANK1;
+  81   2      
+  82   2                da = SBUF2;
+  83   2                
+  84   2                SETBANK0;
+  85   2                _pop_(INSCON);
+  86   2           }
+  87   1           return da;
+  88   1      }
+  89          
+  90          
+  91          /* ！！！！！！！！！！！！！！！！！！！！！！！！*/
+  92          /* ！！！！！下面几个函数一般不需要修改 ！！！！！!*/
+  93          /* ！！！！！！！！！！！！！！！！！！！！！！！！*/
+  94          
+  95          /****************************************
+  96           * 函数名：     uart_packet_deal
+  97           * 说明：   查询是否有一包数据要处理，调用process_packet包处理函数，及通讯故障�
+             -��数
+  98           *             10ms调用一次
+  99           * 输入：   UART_t 指针
+ 100           * 输出：   --
+ 101           ****************************************/
+ 102          static bool panel_packet_check(UART_t * c_uart)
+ 103          {
+ 104   1           u8 len, sum;
+ 105   1           bool check;
+ 106   1      
+ 107   1           len = c_uart->rx_buf[1];
+ 108   1           check = verify_check_crc16(c_uart->rx_buf,len-1);
+ 109   1           if (check) return true;
+ 110   1      
+ 111   1           sum = get_check_sum(c_uart->rx_buf,len-2);
+ 112   1           if (sum == c_uart->rx_buf[len-1])
+ 113   1                return true;
+ 114   1           
+ 115   1           return false;
+C51 COMPILER V9.54   UART                                                                  08/31/2022 15:02:55 PAGE 3   
+
+ 116   1      }
+ 117          
+ 118          void uart_packet_deal(UART_t * c_uart)
+ 119          {
+ 120   1           bool check;
+ 121   1      
+ 122   1           if (c_uart->recved_f)
+ 123   1           {
+ 124   2                check = panel_packet_check(c_uart);
+ 125   2                if (check)
+ 126   2                {
+ 127   3                     process_packet(c_uart);                           //数据包处理
+ 128   3                }
+ 129   2      
+ 130   2                c_uart->recved_f = false;
+ 131   2           }
+ 132   1      }
+ 133          
+ 134          /****************************************
+ 135           * 函数名：     uart_send_byte_isr
+ 136           * 说明：   一字节发送完成，发送下一个，发送中断中调用
+ 137           * 输入：   UART_t 指针
+ 138           * 输出：   --
+ 139           ****************************************/
+ 140          void uart_send_byte_isr(UART_t * c_uart)
+ 141          {
+ 142   1           u8 len;
+ 143   1      
+ 144   1           if (c_uart->sending_f)
+ 145   1           {//没有发送中断或发送中断有问题时，在循环中发送帧内数据
+ 146   2                len = c_uart->tx_buf[1];
+ 147   2      
+ 148   2                c_uart->tx_ct++;
+ 149   2                if (c_uart->tx_ct < len)
+ 150   2                {
+ 151   3                     uart_send_byte(c_uart->uart_id, c_uart->tx_buf[c_uart->tx_ct]); //51重入警告
+ 152   3                }
+ 153   2                else
+ 154   2                {
+ 155   3                     c_uart->tx_ct = 0;
+ 156   3                     c_uart->sending_f = false;                        //一帧数据发送完成
+ 157   3                }
+ 158   2      
+ 159   2                return;
+ 160   2           }
+ 161   1      
+ 162   1          c_uart->tx_ct = 0;
+ 163   1      }
+ 164          
+ 165          /****************************************
+ 166           * 函数名：     uart_recv_byte_isr
+ 167           * 说明：   收到一个字节, 一般在中断中调用
+ 168           * 输入：   UART_t 指针
+ 169           * 输出：   --
+ 170           ****************************************/
+ 171          void uart_recv_byte_isr(UART_t * c_uart)
+ 172          {
+ 173   1           u8 uart_rx_data;
+ 174   1           u8 packet_len = 0;
+ 175   1      
+ 176   1           /* Receive one date */
+ 177   1           uart_rx_data = uart_recv_byte(c_uart->uart_id);        //51重入
+C51 COMPILER V9.54   UART                                                                  08/31/2022 15:02:55 PAGE 4   
+
+ 178   1           
+ 179   1           if(!c_uart->rx_byte_tmr)                                    //收到一帧数据必须在超时时间内处理！！！
+ 180   1                  c_uart->rx_ct = 0;                               //last recv byte timeout! reset recv!!!
+ 181   1           c_uart->rx_byte_tmr = RX_RST_TIME;
+ 182   1           
+ 183   1           if (c_uart->recved_f)
+ 184   1                return;
+ 185   1                
+ 186   1           if(!c_uart->rx_ct)
+ 187   1           {
+ 188   2                if (uart_rx_data != LEAD_BYTE)
+ 189   2                     return;
+ 190   2           }
+ 191   1      
+ 192   1           if(c_uart->rx_ct == 1)
+ 193   1           {
+ 194   2                if ((uart_rx_data > UART_RX_BYTES) || (uart_rx_data == 0))
+ 195   2                {//err
+ 196   3                     c_uart->rx_ct = 0;
+ 197   3                     return;
+ 198   3                }
+ 199   2           }
+ 200   1      
+ 201   1           c_uart->rx_buf[c_uart->rx_ct] = uart_rx_data;
+ 202   1           c_uart->rx_ct++;    
+ 203   1      
+ 204   1           if (c_uart->rx_ct >= 2)
+ 205   1                packet_len = c_uart->rx_buf[1];
+ 206   1           else
+ 207   1                return;
+ 208   1      
+ 209   1           if (c_uart->rx_ct >= packet_len)
+ 210   1           {
+ 211   2                c_uart->rx_ct = 0;            //收到一帧
+ 212   2                c_uart->recved_f = true;    //isr_send_signal(CTRL_TASK_ID);给任务 CTRL_TASK_ID 发信号, 为了使�
+             -��而使用          
+ 213   2           }
+ 214   1      }
+ 215          
+ 216          /****************************************
+ 217           * 函数名：     uart_byte_tmr_dn
+ 218           * 说明：   ms中断中调用 , 经过RX_RST_TIME每接收到1个字节，复位接收.
+ 219           * 输入：   UART_t 指针
+ 220           * 输出：   --
+ 221           ****************************************/
+ 222          void uart_byte_tmr_dn(UART_t * c_uart)
+ 223          {
+ 224   1          //u8_dn(&c_uart->rx_byte_tmr);                     //51重入警告
+ 225   1           if (c_uart->rx_byte_tmr)
+ 226   1                c_uart->rx_byte_tmr--;
+ 227   1      }
+ 228          
+ 229          /****************************************
+ 230           * 函数名：     uart_init
+ 231           * 说明：   uart初始化函数
+ 232           * 输入：   UART_t 指针, uart_id分配给UART_t指针对应的uart
+ 233           * 输出：   --
+ 234           ****************************************/
+ 235          void uart_init(UART_t * c_uart, u8 uart_id)
+ 236          {
+ 237   1           c_uart->uart_id   = uart_id;
+ 238   1          c_uart->sending_f = false;
+C51 COMPILER V9.54   UART                                                                  08/31/2022 15:02:55 PAGE 5   
+
+ 239   1          c_uart->recved_f  = false;
+ 240   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    664    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----      15
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

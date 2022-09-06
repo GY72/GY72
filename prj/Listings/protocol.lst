@@ -1,0 +1,207 @@
+C51 COMPILER V9.54   PROTOCOL                                                              08/31/2022 15:02:55 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE PROTOCOL
+OBJECT MODULE PLACED IN .\Objects\protocol.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\src\lib\protocol.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PR
+                    -INT(.\Listings\protocol.lst) TABS(5) OBJECT(.\Objects\protocol.obj)
+
+line level    source
+
+   1          
+   2          #include "..\include_s.h"
+   3          
+   4          
+   5          UART_t  panel_comm;
+   6          //static
+   7          u16 discont_tmr;
+   8          
+   9          u8 fct_cont_tmr;
+  10          u8 fct_state;
+  11          
+  12          /***************************
+  13           * 接收包解析
+  14           */
+  15          void process_packet(UART_t * c_uart)
+  16          {
+  17   1           if (c_uart->uart_id == ID_UART_PANEL)
+  18   1            {
+  19   2                 if (c_uart->rx_buf[2] == 0xfc)
+  20   2                 {
+  21   3                      fct_state=0x55;
+  22   3                      fct_cont_tmr=250;
+  23   3                      return;
+  24   3                 }        
+  25   2                fct_state=0;
+  26   2                 if(c_uart->rx_buf[2] == 0x41)
+  27   2                 {
+  28   3                          panel_comm.cmd = FZKZ_FLAG;
+  29   3                          device_info.soft_edition = c_uart->rx_buf[3];
+  30   3                          device_info.hard_edition = c_uart->rx_buf[4];
+  31   3                          device_info.beep_type     = c_uart->rx_buf[5];    
+  32   3                          device_info.fffan_level  = c_uart->rx_buf[6];
+  33   3                          return;
+  34   3                 }
+  35   2      
+  36   2                 if (c_uart->rx_buf[2] == 0x47 || c_uart->rx_buf[2] == 0x48)
+  37   2                 {
+  38   3                      status_info.light_level = c_uart->rx_buf[3];
+  39   3                      status_info.ffan_level  = c_uart->rx_buf[4];
+  40   3                      status_info.error_code  = c_uart->rx_buf[5];
+  41   3                      status_info.fb_current  = c_uart->rx_buf[6] * 10;
+  42   3                      status_info.reserve1    = c_uart->rx_buf[7];
+  43   3                      status_info.fan_power   = c_uart->rx_buf[8] * 2;
+  44   3                      status_info.fan_speed   = c_uart->rx_buf[9] * 10;
+  45   3                      status_info.ipm_temp    = c_uart->rx_buf[10];
+  46   3                      status_info.boost  = c_uart->rx_buf[11];
+  47   3                      
+  48   3                      return;
+  49   3                 }   
+  50   2            }
+  51   1      }
+  52          
+  53          /***************************
+  54           * 两次发送间隔减去发送时间必须>10ms!!!
+C51 COMPILER V9.54   PROTOCOL                                                              08/31/2022 15:02:55 PAGE 2   
+
+  55           * 10ms per called
+  56           */
+  57          
+  58          void send_panel_comm(void)
+  59          {
+  60   1      static u8 send_t = 0;
+  61   1           
+  62   1           u16 temp;
+  63   1           
+  64   1           if(++send_t >= 10)
+  65   1           {
+  66   2                send_t = 0;
+  67   2                if (panel_comm.cmd == FZKZ_FLAG)//负载控制命令
+  68   2                {
+  69   3                     panel_comm.tx_buf[0] = LEAD_BYTE;
+  70   3                     panel_comm.tx_buf[1] = 0x0d;
+  71   3                     panel_comm.tx_buf[2] = 0x07;
+  72   3      
+  73   3                     panel_comm.tx_buf[3] = TG_RUN_TIME;
+  74   3                     panel_comm.tx_buf[4] = TG_DZ_CURRENT;
+  75   3      
+  76   3                     panel_comm.tx_buf[5] = (pushrod_state << 4) | (robam_state & 0x01);
+  77   3                     panel_comm.tx_buf[6] = key_led_light;
+  78   3                     panel_comm.tx_buf[7] = robam_gear;      //烟机档位
+  79   3                     panel_comm.tx_buf[8] = buzz_mode;       
+  80   3                     
+  81   3                     panel_comm.tx_buf[9] = 0xff;            //电加热
+  82   3                     
+  83   3                     panel_comm.tx_buf[10] = 0xff;           //预留
+  84   3                     
+  85   3                     temp = crc16_cal(panel_comm.tx_buf, panel_comm.tx_buf[1] - 2);
+  86   3                     
+  87   3                     panel_comm.tx_buf[11] = HIBYTE(temp);
+  88   3                     panel_comm.tx_buf[12] = LOBYTE(temp); 
+  89   3      
+  90   3                     panel_comm.sending_f = true;
+  91   3                     panel_comm.tx_ct = 0;
+  92   3                     uart_send_byte(panel_comm.uart_id,panel_comm.tx_buf[0]);
+  93   3                          
+  94   3                     buzz_mode = 0;
+  95   3                     
+  96   3                     return;
+  97   3                }
+  98   2                
+  99   2                if (panel_comm.cmd == CXSB_FLAG)//查询设备
+ 100   2                {
+ 101   3                     panel_comm.tx_buf[0] = LEAD_BYTE;
+ 102   3                     panel_comm.tx_buf[1] = 0x08;
+ 103   3                     panel_comm.tx_buf[2] = 0x01;
+ 104   3                     panel_comm.tx_buf[3] = 0x00;
+ 105   3                     panel_comm.tx_buf[4] = 0x00;
+ 106   3                     panel_comm.tx_buf[5] = 0x00;
+ 107   3      
+ 108   3                     temp = crc16_cal(panel_comm.tx_buf, panel_comm.tx_buf[1] - 2);
+ 109   3                     panel_comm.tx_buf[6] = HIBYTE(temp);
+ 110   3                     panel_comm.tx_buf[7] = LOBYTE(temp); 
+ 111   3      
+ 112   3                     panel_comm.sending_f = true;
+ 113   3                     uart_send_byte(panel_comm.uart_id,panel_comm.tx_buf[0]);
+ 114   3                     return;
+ 115   3                }
+ 116   2                
+C51 COMPILER V9.54   PROTOCOL                                                              08/31/2022 15:02:55 PAGE 3   
+
+ 117   2                if (panel_comm.cmd == ZTCX_FLAG)//状态查询
+ 118   2                {
+ 119   3                     panel_comm.tx_buf[0] = LEAD_BYTE;
+ 120   3                     panel_comm.tx_buf[1] = 0x08;
+ 121   3                     panel_comm.tx_buf[2] = 0x08;
+ 122   3                     panel_comm.tx_buf[3] = 0x00;
+ 123   3                     panel_comm.tx_buf[4] = 0x00;
+ 124   3                     panel_comm.tx_buf[5] = 0x00;
+ 125   3                     
+ 126   3                     temp = crc16_cal(panel_comm.tx_buf, panel_comm.tx_buf[1] - 2);
+ 127   3                     panel_comm.tx_buf[6] = HIBYTE(temp);
+ 128   3                     panel_comm.tx_buf[7] = LOBYTE(temp); 
+ 129   3                     
+ 130   3                     panel_comm.sending_f = true;
+ 131   3                     uart_send_byte(panel_comm.uart_id,panel_comm.tx_buf[0]);
+ 132   3                     return;
+ 133   3                }
+ 134   2                
+ 135   2                if(panel_comm.cmd == FCT_FLAG)
+ 136   2                {
+ 137   3                     panel_comm.tx_buf[0] = LEAD_BYTE;
+ 138   3                     panel_comm.tx_buf[1] = 0x08;
+ 139   3                     panel_comm.tx_buf[2] = 0xfc;
+ 140   3                     panel_comm.tx_buf[3] = 0x00;
+ 141   3                     
+ 142   3                     panel_comm.tx_buf[4] = 0x00;
+ 143   3                     panel_comm.tx_buf[5] = 0x00;
+ 144   3                     
+ 145   3                     temp = crc16_cal(panel_comm.tx_buf, panel_comm.tx_buf[1] - 2);
+ 146   3                     panel_comm.tx_buf[6] = HIBYTE(temp);
+ 147   3                     panel_comm.tx_buf[7] = LOBYTE(temp); 
+ 148   3                     panel_comm.sending_f = true;
+ 149   3                     uart_send_byte(panel_comm.uart_id,panel_comm.tx_buf[0]);
+ 150   3                     buzz_mode = 0;
+ 151   3                     return;
+ 152   3                }
+ 153   2           }
+ 154   1      
+ 155   1      }
+ 156          
+ 157          /***************************
+ 158           * 
+ 159           * disconnected alarm
+ 160          
+ 161          bool is_comm_discont(void)
+ 162          {
+ 163              if (!discont_tmr)
+ 164                  return true;
+ 165          
+ 166              return false;
+ 167          } */
+ 168          
+ 169          /*********************************************************/
+ 170          /******************** 协议模块初始化 **********************/
+ 171          /*********************************************************/
+ 172          void protocol_init(void)
+ 173          {
+ 174   1          discont_tmr = 20*100;
+ 175   1          uart_init(&panel_comm,ID_UART_PANEL);
+ 176   1      
+ 177   1      }
+
+C51 COMPILER V9.54   PROTOCOL                                                              08/31/2022 15:02:55 PAGE 4   
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    614    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     54       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
